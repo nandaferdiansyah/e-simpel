@@ -1,1 +1,4 @@
 node_modules/
+.puppeteer-profiles/
+.puppeteer-cache/
+.puppeteer-tmp/

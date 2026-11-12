@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><title>E-Simpel</title>
+<style>
+:root{--navy:#001F43;--navy2:#000F24;--gold:#A29061;--gold2:#8c7a4b;--ink:#0f2a4a;--mut:#64748b;--line:#e2e8f0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:#000;font-family:"Segoe UI",system-ui,sans-serif}
+#stage{position:relative;width:1280px;height:720px;overflow:hidden;background:radial-gradient(1200px 700px at 30% 20%,#0b3a73 0%,var(--navy) 45%,var(--navy2) 100%);color:#fff}
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden}
+.abs{position:absolute}
+.center{display:flex;align-items:center;justify-content:center}
+/* caption */
+#cap{position:absolute;left:90px;right:90px;bottom:26px;min-height:62px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:23px;line-height:1.35;font-weight:600;color:#fff;background:rgba(0,10,28,.72);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 22px;z-index:50;backdrop-filter:blur(2px)}
+#tag{position:absolute;right:26px;top:14px;z-index:60;font-size:12px;font-weight:700;letter-spacing:.08em;color:#c9b87a;background:rgba(0,10,28,.6);border:1px solid rgba(201,184,122,.4);padding:4px 10px;border-radius:999px;opacity:0}
+#bar{position:absolute;left:0;bottom:0;height:5px;background:linear-gradient(90deg,var(--gold),#e3d3a0);z-index:70}
+/* intro */
+.chip{position:absolute;padding:8px 14px;border-radius:8px;background:#fff;color:#334155;font-size:15px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.4);white-space:nowrap}
+.chip b{color:#dc2626;margin-right:6px}
+h1.big{font-size:84px;font-weight:900;letter-spacing:.06em}
+.sub{font-size:24px;color:#c9b87a;letter-spacing:.2em;text-transform:uppercase;font-weight:700}
+/* def */
+.card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:20px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:9px 16px;border-radius:999px;background:rgba(162,144,97,.22);border:1px solid rgba(201,184,122,.5);color:#e8dcae;font-weight:700;font-size:17px}
+/* flow */
+.stg{position:absolute;width:230px;height:150px;border-radius:18px;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.18);padding:18px;text-align:center}
+.stg .n{width:42px;height:42px;border-radius:50%;margin:0 auto 8px;background:rgba(162,144,97,.25);color:#e3d3a0;font-weight:900;font-size:20px;display:flex;align-items:center;justify-content:center}
+.stg h4{font-size:24px;font-weight:800}.stg p{font-size:14px;color:#b6c4d8;margin-top:6px;line-height:1.35}
+/* adv */
+.adv{position:absolute;width:360px;height:190px;border-radius:20px;padding:20px 22px;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.16)}
+.adv .ic{font-size:34px;line-height:1}.adv h4{font-size:23px;font-weight:800;margin-top:10px}.adv p{font-size:15px;line-height:1.4;color:#c3d0e2;margin-top:6px}
+/* browser */
+#appWrap{left:46px;top:34px;width:1188px;height:590px;border-radius:14px;overflow:hidden;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.55);color:var(--ink)}
+.chrome{height:34px;background:#e9edf3;display:flex;align-items:center;padding:0 14px;gap:7px}
+.chrome i{width:11px;height:11px;border-radius:50%;background:#cbd5e1}.chrome .u{margin-left:14px;flex:1;max-width:560px;height:22px;border-radius:11px;background:#fff;font-size:12px;color:#64748b;display:flex;align-items:center;padding:0 12px}
+.abody{position:absolute;left:0;right:0;top:34px;bottom:0;background:#f1f5f9}
+#side{position:absolute;left:0;top:0;bottom:0;width:196px;background:linear-gradient(180deg,var(--navy),var(--navy2));color:#fff;padding:14px 10px;font-size:12.5px}
+#side .br{display:flex;align-items:center;gap:9px;padding:2px 6px 12px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:10px}
+#side .br img{width:30px;height:30px}#side .br b{font-size:16px;letter-spacing:.05em;display:block}#side .br span{font-size:8px;color:#94a3b8;letter-spacing:.16em;text-transform:uppercase}
+.sec{font-size:9px;font-weight:800;color:#64748b;letter-spacing:.1em;text-transform:uppercase;margin:10px 6px 4px}
+.ni{padding:8px 10px;border-radius:11px;color:#94a3b8;font-weight:600;margin-bottom:2px;white-space:nowrap}
+.ni.on{background:linear-gradient(90deg,var(--gold),var(--gold2));color:#fff;font-weight:800;box-shadow:0 4px 12px rgba(162,144,97,.3)}
+.ni.sub{padding-left:24px;font-size:11px;white-space:normal;line-height:1.2}
+#main{position:absolute;left:196px;right:0;top:0;bottom:0}
+#hdr{height:46px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 20px;font-weight:800;font-size:15px;color:var(--navy)}
+#hdr .r{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;color:var(--mut)}
+#hdr .av{width:28px;height:28px;border-radius:50%;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+.pg{position:absolute;left:0;right:0;top:46px;bottom:0;padding:18px 22px;opacity:0;visibility:hidden}
+.crd{background:#fff;border:1px solid var(--line);border-radius:14px}
+.btn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:10px;background:linear-gradient(90deg,var(--navy),var(--navy2));color:#fff;font-weight:700;font-size:12.5px}
+.btn.gold{background:linear-gradient(90deg,var(--gold),var(--gold2))}
+.btn.light{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;border:1px solid}
+.b-draft{color:#475569;background:#F1F5F9;border-color:#CBD5E1}.b-pend{color:#1D4ED8;background:#DBEAFE;border-color:#93C5FD}.b-ok{color:#166534;background:#DCFCE7;border-color:#86EFAC}.b-rej{color:#991B1B;background:#FEE2E2;border-color:#FCA5A5}
+table{border-collapse:collapse;width:100%;font-size:12.5px}th{text-align:left;color:var(--mut);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;border-bottom:1px solid var(--line)}td{padding:9px 12px;border-bottom:1px solid #f1f5f9}
+.inp{height:34px;border:1.5px solid #cbd5e1;border-radius:9px;padding:0 11px;display:flex;align-items:center;font-size:13px;background:#fff;color:#0f172a;white-space:nowrap;overflow:hidden}
+.inp.f{border-color:var(--gold);box-shadow:0 0 0 3px rgba(162,144,97,.2)}
+.lbl{font-size:11px;font-weight:700;color:#475569;margin:10px 0 4px}
+.caret::after{content:"";display:inline-block;width:1.5px;height:15px;background:#0f172a;margin-left:1px;vertical-align:-3px}
+/* login */
+#pLogin{position:absolute;inset:0;background:linear-gradient(135deg,#f5f3ff,#fff,#eef2ff);opacity:0;visibility:hidden}
+/* studio */
+.lane{position:absolute;top:0;bottom:0;border-right:1px dashed #cbd5e1}
+.lh{height:30px;background:#e8eef6;border-bottom:1px solid #cbd5e1;font-size:11.5px;font-weight:800;color:var(--navy);display:flex;align-items:center;justify-content:center}
+.nd{position:absolute;display:flex;align-items:center;justify-content:center;text-align:center;font-size:11px;font-weight:700;color:#0f172a;line-height:1.2;opacity:0}
+.nd.p{width:128px;height:42px;background:#dbeafe;border:2px solid #3b82f6;border-radius:6px}
+.nd.t{width:104px;height:34px;background:#dcfce7;border:2px solid #16a34a;border-radius:20px}
+.nd.d{width:118px;height:62px;background:#fef3c7;border:2px solid #d97706;clip-path:none}
+.dm{position:absolute;width:96px;height:62px;opacity:0}
+.dm svg{position:absolute;inset:0}.dm span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+svg.ar{position:absolute;left:0;top:0;pointer-events:none}
+#toast{position:absolute;right:24px;bottom:22px;padding:11px 16px;border-radius:12px;background:#052e16;color:#bbf7d0;font-size:13px;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0}
+.modalbg{position:absolute;inset:0;background:rgba(2,12,27,.55);opacity:0;visibility:hidden}
+.modal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:22px 26px;box-shadow:0 30px 70px rgba(0,0,0,.4)}
+/* cursor */
+#cursor{position:absolute;z-index:90;width:26px;height:26px;opacity:0;pointer-events:none;filter:drop-shadow(0 3px 4px rgba(0,0,0,.45))}
+#rip{position:absolute;z-index:89;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:3px solid #A29061;background:rgba(162,144,97,.25);opacity:0;pointer-events:none}
+</style></head>
+<body>
+<div id="stage">
+
+<!-- ===== INTRO ===== -->
+<div id="sIntro" class="scene">
+  <div id="chips"></div>
+  <div id="introLogo" class="abs center" style="inset:0;flex-direction:column;gap:10px">
+    <img src="logo.png" style="width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 10px 30px rgba(0,0,0,.5))">
+    <h1 class="big">E-SIMPEL</h1>
+    <div class="sub">Kementerian ATR/BPN</div>
+  </div>
+  <div id="outro" class="abs center" style="inset:0;flex-direction:column;gap:10px;opacity:0;visibility:hidden"></div>
+</div>
+
+<!-- ===== DEFINISI ===== -->
+<div id="sDef" class="scene">
+  <div class="abs" style="left:90px;top:56px;font-size:20px;font-weight:800;letter-spacing:.2em;color:#c9b87a">1 · APA ITU E-SIMPEL?</div>
+  <div class="abs" style="left:90px;top:100px;width:1100px">
+    <div id="defName" style="font-size:54px;font-weight:900;line-height:1.12">Sistem Informasi<br>Manajemen Prosedur<br>dan Pelayanan</div>
+  </div>
+  <div id="defChips" class="abs" style="left:90px;top:330px;display:flex;gap:12px"></div>
+  <div id="defDocs" class="abs" style="left:90px;top:410px;display:flex;gap:18px"></div>
+  <img src="logo.png" id="defLogo" class="abs" style="right:100px;top:120px;width:220px;height:220px;object-fit:contain;opacity:.95">
+</div>
+
+<!-- ===== ALUR ===== -->
+<div id="sFlow" class="scene">
+  <div class="abs" style="left:90px;top:56px;font-size:20px;font-weight:800;letter-spacing:.2em;color:#c9b87a">PERJALANAN SEBUAH DOKUMEN</div>
+  <div id="stgs"></div>
+  <svg class="abs" style="left:0;top:0" width="1280" height="720" id="flowSvg"></svg>
+  <div id="tok" class="abs center" style="width:54px;height:66px;border-radius:8px;background:#fff;color:#001F43;font-weight:900;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.5);flex-direction:column;opacity:0">SOP<span style="font-size:9px;color:#A29061">v1</span></div>
+  <div class="abs" style="left:90px;right:90px;top:500px;display:flex;gap:30px;font-size:18px;color:#d3deec">
+    <div id="fnote1" style="flex:1;opacity:0">🔔 Setiap perpindahan tahap memicu notifikasi — tak ada usulan yang mengendap.</div>
+    <div id="fnote2" style="flex:1;opacity:0">🕘 Seluruh perjalanan tersimpan dalam riwayat dan dapat dibuka kapan saja.</div>
+  </div>
+</div>
+
+<!-- ===== KELEBIHAN ===== -->
+<div id="sAdv" class="scene">
+  <div class="abs" style="left:90px;top:44px;font-size:20px;font-weight:800;letter-spacing:.2em;color:#c9b87a">2 · KELEBIHAN E-SIMPEL</div>
+  <div id="advs"></div>
+  <div id="free" class="abs center" style="left:90px;top:548px;width:1100px;height:52px;border-radius:14px;background:linear-gradient(90deg,rgba(162,144,97,.35),rgba(162,144,97,.12));border:1px solid rgba(201,184,122,.6);font-size:20px;font-weight:800;color:#f3e7bb;opacity:0">✨ Tanpa biaya langganan — dan memang tidak akan pernah ada</div>
+</div>
+
+<!-- ===== SIMULASI APLIKASI ===== -->
+<div id="appWrap" class="scene">
+  <div class="chrome"><i></i><i></i><i></i><div class="u" id="url">🔒 …/e-sop-atrbpn/</div></div>
+  <div class="abody">
+    <div id="side">
+      <div class="br"><img src="logo.png"><div><b>SIMPEL</b><span>Kementerian ATR/BPN</span></div></div>
+      <div class="sec">Menu Utama</div>
+      <div class="ni on" id="nDash">⌂ &nbsp;Dashboard</div>
+      <div class="ni" style="color:#64748b;font-size:10px;font-weight:800;letter-spacing:.08em;margin-top:4px">⑂ &nbsp;PROSES BISNIS</div>
+      <div class="ni sub">Buat Proses Bisnis (BPMN)</div>
+      <div class="ni" id="nSop">✎ &nbsp;Buat SOP</div>
+      <div class="ni">☑ &nbsp;Buat SP</div>
+      <div class="ni">⚖ &nbsp;Peraturan</div>
+      <div class="ni">≣ &nbsp;Juknis / Juklak / SE</div>
+      <div class="sec">Sistem</div>
+      <div class="ni">💬 &nbsp;HelpDesk</div>
+      <div class="ni" id="nPanduan">? &nbsp;Panduan Penggunaan</div>
+      <div class="ni">ⓘ &nbsp;About</div>
+    </div>
+    <div id="main">
+      <div id="hdr"><span id="hTitle">Dashboard</span><div class="r"><span>🔔</span><span>Budi · Unit Kerja</span><div class="av">B</div></div></div>
+
+      <!-- Dashboard -->
+      <div id="pDash" class="pg">
+        <div style="display:flex;gap:14px">
+          <div class="crd" style="flex:1;padding:12px 16px"><div style="font-size:11px;color:var(--mut);font-weight:700">TOTAL DOKUMEN</div><div class="sn" data-v="1248" style="font-size:30px;font-weight:900;color:var(--navy)">0</div></div>
+          <div class="crd" style="flex:1;padding:12px 16px"><div style="font-size:11px;color:var(--mut);font-weight:700">PROSES BISNIS</div><div class="sn" data-v="386" style="font-size:30px;font-weight:900;color:#059669">0</div></div>
+          <div class="crd" style="flex:1;padding:12px 16px"><div style="font-size:11px;color:var(--mut);font-weight:700">SOP</div><div class="sn" data-v="642" style="font-size:30px;font-weight:900;color:#2563eb">0</div></div>
+          <div class="crd" style="flex:1;padding:12px 16px"><div style="font-size:11px;color:var(--mut);font-weight:700">STANDAR PELAYANAN</div><div class="sn" data-v="220" style="font-size:30px;font-weight:900;color:#7c3aed">0</div></div>
+        </div>
+        <div style="display:flex;gap:14px;margin-top:14px">
+          <div class="crd" style="width:330px;height:300px;padding:14px 16px">
+            <div style="font-weight:800;font-size:13px;color:var(--navy)">Distribusi Dokumen per Jenis</div>
+            <div id="bars" style="display:flex;align-items:flex-end;gap:16px;height:220px;margin-top:14px;padding:0 6px;border-bottom:1px solid var(--line)"></div>
+            <div style="display:flex;gap:16px;padding:6px 6px;font-size:10px;color:var(--mut);font-weight:700"><span style="width:60px;text-align:center">Probis</span><span style="width:60px;text-align:center">SOP</span><span style="width:60px;text-align:center">SP</span></div>
+          </div>
+          <div class="crd" style="flex:1;height:300px;overflow:hidden">
+            <div style="padding:12px 16px;display:flex;align-items:center"><b style="font-size:13px;color:var(--navy)">Rekap per Unit Kerja (Level 1)</b><span style="margin-left:auto" class="btn light">⬇ Unduh Excel</span></div>
+            <table><tr><th>Unit Kerja</th><th>Probis</th><th>SOP</th><th>SP</th></tr>
+              <tr id="u1"><td><b style="color:#2563eb;text-decoration:underline">Sekretariat Jenderal</b></td><td>74</td><td>138</td><td>31</td></tr>
+              <tr id="s1" class="sr"><td style="padding-left:30px;color:#475569">↳ Biro Organisasi, Tata Laksana, dan Manajemen Risiko</td><td>22</td><td>45</td><td>9</td></tr>
+              <tr id="s2" class="sr"><td style="padding-left:30px;color:#475569">↳ Biro Hukum</td><td>18</td><td>31</td><td>6</td></tr>
+              <tr class="ur"><td>Inspektorat Jenderal</td><td>41</td><td>77</td><td>12</td></tr>
+              <tr class="ur"><td>Kantor Wilayah (contoh)</td><td>126</td><td>214</td><td>88</td></tr>
+              <tr class="ur"><td>Kantor Pertanahan (contoh)</td><td>145</td><td>213</td><td>89</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daftar SOP -->
+      <div id="pSop" class="pg">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <div><div style="font-size:20px;font-weight:900;color:var(--navy)">Buat SOP</div><div style="font-size:12px;color:var(--mut)">Susun SOP di Studio, atau impor dari PDF</div></div>
+          <div style="margin-left:auto;display:flex;gap:8px"><span class="btn light">⬆ Impor PDF</span><span class="btn gold" id="btnNew">＋ Buat SOP Baru</span></div>
+        </div>
+        <div class="crd"><table><tr><th>Judul SOP</th><th>Jenis</th><th>Status</th><th>Diperbarui</th></tr>
+          <tr><td><b>SOP Penyusunan Laporan Kinerja</b></td><td>SOP AP</td><td><span class="badge b-draft">Draft</span></td><td>Kemarin</td></tr>
+          <tr><td><b>SOP Pengelolaan Arsip Dinamis</b></td><td>SOP AP</td><td><span class="badge b-pend">Pending</span></td><td>3 hari lalu</td></tr>
+          <tr><td><b>SOP Layanan Persuratan</b></td><td>SOP AP</td><td><span class="badge b-ok">Approved</span></td><td>2 pekan lalu</td></tr>
+        </table></div>
+      </div>
+
+      <!-- Studio -->
+      <div id="pStudio" class="pg" style="padding:0">
+        <div style="height:46px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 16px">
+          <b style="font-size:13.5px;color:var(--navy)">Studio SOP · Pengecekan Sertipikat</b>
+          <span id="stBadge" class="badge b-draft">Draft</span>
+          <span id="stSave" style="font-size:11.5px;color:#059669;font-weight:700;opacity:0">✓ Tersimpan otomatis</span>
+          <span style="margin-left:auto;display:flex;gap:8px"><span class="btn light" id="btnAdd">＋ Kegiatan</span><span class="btn light" id="btnPdf">⬇ PDF</span><span class="btn gold" id="btnSend">➤ Kirim ke Biro Ortala MR</span></span>
+        </div>
+        <div style="position:absolute;left:0;top:46px;width:700px;bottom:0;background:#fff;border-right:1px solid var(--line)" id="canvas">
+          <div style="display:flex;position:absolute;left:0;right:0;top:0"><div class="lh" style="width:233px">Pemohon</div><div class="lh" style="width:233px">Petugas Loket</div><div class="lh" style="width:234px">Kepala Seksi</div></div>
+          <div class="lane" style="left:0;width:233px;top:30px"></div><div class="lane" style="left:233px;width:233px;top:30px"></div>
+          <svg class="ar" width="700" height="500" id="arrows"></svg>
+          <div id="nodes"></div>
+        </div>
+        <div style="position:absolute;left:700px;right:0;top:46px;bottom:0;background:#f8fafc;padding:14px 16px" id="rightp">
+          <div id="propsP">
+            <div style="font-weight:800;font-size:13px;color:var(--navy)">Properti Kegiatan</div>
+            <div class="lbl">Kegiatan</div><div class="inp f" id="prKeg"></div>
+            <div class="lbl">Pelaksana</div><div class="inp" id="prPel">Petugas Loket</div>
+            <div class="lbl">Waktu</div><div class="inp" id="prWaktu"></div>
+            <div class="lbl">Output</div><div class="inp" id="prOut"></div>
+            <div class="lbl">Persyaratan / Mutu Baku</div><div class="inp" style="color:#94a3b8">KTP, surat permohonan…</div>
+          </div>
+          <div id="revP" style="opacity:0;visibility:hidden;position:absolute;left:16px;right:16px;top:14px">
+            <div style="font-weight:800;font-size:13px;color:var(--navy)">Catatan Revisi</div>
+            <div id="note1" class="crd" style="margin-top:10px;padding:12px;border-left:4px solid #ef4444;opacity:0"><div style="font-size:11px;font-weight:800;color:#991B1B">Reviewer · Biro Ortala MR</div><div style="font-size:12.5px;margin-top:4px;color:#334155">Mohon lengkapi kolom <b>waktu</b> pada kegiatan “Memeriksa kelengkapan berkas”.</div></div>
+            <div id="note2" class="crd" style="margin-top:10px;padding:12px;border-left:4px solid #22c55e;opacity:0"><div style="font-size:11px;font-weight:800;color:#166534">✓ Revisi dikerjakan</div><div style="font-size:12.5px;margin-top:4px;color:#334155">Waktu ditambahkan: 10 menit.</div></div>
+            <div id="note3" class="crd" style="margin-top:10px;padding:12px;border-left:4px solid #22c55e;opacity:0"><div style="font-size:11px;font-weight:800;color:#166534">Reviewer · Disetujui</div><div style="font-size:12.5px;margin-top:4px;color:#334155">Sudah sesuai. SOP disetujui.</div></div>
+          </div>
+        </div>
+        <div id="toast"></div>
+      </div>
+
+      <!-- modal Buat SOP -->
+      <div id="mSopBg" class="modalbg"></div>
+      <div id="mSop" class="modal" style="width:520px;opacity:0;visibility:hidden">
+        <div style="font-size:17px;font-weight:900;color:var(--navy)">Buat SOP Baru</div>
+        <div class="lbl">Judul SOP</div><div class="inp f" id="fJudul"></div>
+        <div style="display:flex;gap:12px"><div style="flex:1"><div class="lbl">Jenis</div><div class="inp" id="fJenis"></div></div><div style="flex:1"><div class="lbl">Klasifikasi</div><div class="inp" id="fKlas"></div></div></div>
+        <div class="lbl">Sub-Unit (Level 2)</div><div class="inp" id="fSub"></div>
+        <div style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px"><span class="btn light">Batal</span><span class="btn gold" id="btnCreate">Buat &amp; Buka Studio</span></div>
+      </div>
+
+      <!-- modal Bagikan -->
+      <div id="mShBg" class="modalbg"></div>
+      <div id="mShare" class="modal" style="width:500px;opacity:0;visibility:hidden">
+        <div style="font-size:17px;font-weight:900;color:var(--navy)">🔗 Bagikan Dokumen</div>
+        <div style="font-size:12.5px;color:#64748b;margin-top:4px">Siapa pun yang memiliki tautan dapat membuka dokumen tanpa login.</div>
+        <div style="display:flex;gap:8px;margin-top:14px"><div class="inp f" style="flex:1;font-size:12px">…/e-sop-atrbpn/share/sop/a1b2c3d4</div><span class="btn gold" id="btnCopy">Salin</span></div>
+        <div id="copied" style="font-size:12.5px;color:#059669;font-weight:800;margin-top:10px;opacity:0">✓ Tautan disalin ke clipboard</div>
+      </div>
+    </div>
+
+    <!-- Login -->
+    <div id="pLogin">
+      <div class="crd" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:430px;padding:26px 30px;box-shadow:0 10px 40px rgba(30,41,59,.12)">
+        <div style="text-align:center"><img src="logo.png" style="width:62px;height:62px"><div style="font-size:17px;font-weight:900;color:#111827;margin-top:8px;line-height:1.25">Sistem Informasi Manajemen Prosedur dan Pelayanan (SIMPEL)</div></div>
+        <div class="lbl" style="margin-top:18px">Nama Pengguna</div><div class="inp" id="inUser"></div>
+        <div class="lbl">Kata Sandi</div><div class="inp" id="inPass"></div>
+        <div id="btnLogin" class="btn" style="width:100%;justify-content:center;margin-top:18px;height:40px;background:linear-gradient(90deg,#6d28d9,#4f46e5)">Masuk</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="cap"></div>
+<div id="tag">SIMULASI TAMPILAN · DATA ILUSTRASI</div>
+<div id="bar"></div>
+<div id="rip"></div>
+<svg id="cursor" viewBox="0 0 24 24"><path d="M3 2l7.5 19 2.7-7.8L21 10.5z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
+</div>
+
+<script>
+const DUR = [9.99,15.72,18.03,18.51,23.04,11.69,20.67,12.36,13.54,7.56,8.62,15.17,9.58,16.2,13.59,19.06];
+const NARASI = [
+  "Pernahkah Anda kesulitan mencari SOP versi terbaru? Di video ini, kita berkenalan dengan E-Simpel.",
+  "Apa itu E-Simpel? Singkatan dari Sistem Informasi Manajemen Prosedur dan Pelayanan. Aplikasi milik Kementerian ATR/BPN yang dikelola Biro Ortala MR.",
+  "Di sini, seluruh unit kerja menyusun, mengajukan, mereview, hingga menetapkan dokumen ketatalaksanaan, yaitu proses bisnis, SOP, dan standar pelayanan, dalam satu alur dan satu tempat penyimpanan.",
+  "Kelebihan pertama: hanya ada satu versi dokumen. Tidak ada lagi pertanyaan, berkas mana yang paling baru. Setiap perubahan status terekam di riwayat, dan setiap perpindahan tahap memicu notifikasi.",
+  "Kedua, dokumen dibuat langsung di dalam aplikasi. Ada studio BPMN untuk proses bisnis, Studio SOP dengan bagan alur, dan Studio Standar Pelayanan. Punya berkas lama? Tinggal impor dari PDF, Word, atau Visual Paradigm.",
+  "Ketiga, proses review jadi mudah. Catatan perbaikan ditulis langsung pada dokumennya, bukan lagi lewat surel berantai.",
+  "Keempat, dashboard memantau capaian tiap unit kerja secara berjenjang, dan dokumen yang terbit bisa dibagikan lewat satu tautan. Hasilnya dapat diunduh sebagai PDF, Word, atau Excel. Dan semuanya tanpa biaya langganan.",
+  "Sekarang, kita lihat cara memakainya. Pertama, buka E-Simpel, lalu masuk dengan nama pengguna dan kata sandi Anda.",
+  "Setelah masuk, Anda tiba di Dashboard. Di sini terlihat rekap dokumen per unit kerja. Klik nama unit untuk melihat rincian sub-unitnya.",
+  "Untuk membuat SOP, pilih menu Buat SOP di sidebar, lalu klik Buat SOP Baru.",
+  "Isi judul, jenis, klasifikasi, dan sub-unit, lalu buka studio.",
+  "Di Studio SOP, susun bagan alur. Tambahkan kegiatan, pilih pelaksananya, lalu atur waktu dan keluarannya. Perubahan tersimpan otomatis.",
+  "Sudah selesai? Klik Kirim ke Biro Ortala MR. Status dokumen berubah dari Draft menjadi Pending.",
+  "Reviewer memberi catatan langsung di dokumen. Bila perlu revisi, Anda perbaiki sesuai catatan, lalu kirim ulang. Jika sudah sesuai, status menjadi Approved.",
+  "Terakhir, setelah ditetapkan, SOP terbit. Unduh sebagai PDF, atau bagikan lewat satu tautan yang bisa dibuka siapa saja tanpa perlu login.",
+  "Itulah E-Simpel: satu ruang kerja, satu versi dokumen, dari penyusunan sampai penetapan. Butuh bantuan? Buka menu Panduan Penggunaan, atau hubungi HelpDesk. Selamat mencoba!"
+]
+;
+const START = []; let acc = 0; DUR.forEach(d => { START.push(acc); acc += d; });
+const TOTAL = acc;
+const $ = s => document.querySelector(s);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const ramp = (f, a, b) => clamp((f - a) / (b - a));
+const ease = x => x < .5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
+const out3 = x => 1 - Math.pow(1 - x, 3);
+const SCENES = ['sIntro', 'sDef', 'sFlow', 'sAdv', 'appWrap'].map(id => document.getElementById(id));
+function typ(el, s, p, caret) { const n = Math.floor(s.length * clamp(p)); el.textContent = s.slice(0, n); el.classList.toggle('caret', !!caret && p < 1); }
+function setOp(el, o, y) { el.style.opacity = o; el.style.visibility = o > 0.001 ? 'visible' : 'hidden'; if (y !== undefined) el.style.transform = `translateY(${y}px)`; }
+function center(sel) { const r = $(sel).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }
+
+/* ---------- konstruksi DOM dinamis ---------- */
+// intro
+const CH = ['SOP_final.pdf', 'SOP_final_REVISI2.pdf', 'SOP_FIX_baru(1).docx', 'scan_0045.pdf', 'SOP unit B (terbaru??).doc', 'Probis_v3_asli.vsdx', 'SP_layanan_edit_budi.docx', 'SOP_final_FINAL.pdf'];
+const CHP = [[90, 90], [900, 70], [330, 190], [820, 250], [120, 340], [560, 90], [880, 430], [330, 470]];
+CH.forEach((t, i) => { const c = document.createElement('div'); c.className = 'chip'; c.id = 'ch' + i; c.innerHTML = '<b>▣</b>' + t; $('#chips').appendChild(c); });
+// def chips
+['Kementerian ATR/BPN', 'Biro Ortala MR', 'Probis • SOP • SP • Regulasi'].forEach((t, i) => { const e = document.createElement('span'); e.className = 'pill'; e.id = 'dc' + i; e.textContent = t; $('#defChips').appendChild(e); });
+[['⑂', 'Proses Bisnis', 'BPMN 2.0'], ['✎', 'SOP', 'Bagan alur'], ['☑', 'Standar Pelayanan', 'Permenpan RB 15/2014'], ['⚖', 'Regulasi', 'Juknis · Juklak · SE']].forEach(([ic, h, s], i) => {
+  const e = document.createElement('div'); e.className = 'card'; e.id = 'dd' + i; e.style.cssText = 'width:262px;padding:18px 20px';
+  e.innerHTML = `<div style="font-size:34px">${ic}</div><div style="font-size:22px;font-weight:800;margin-top:6px">${h}</div><div style="font-size:14px;color:#b6c4d8;margin-top:2px">${s}</div>`; $('#defDocs').appendChild(e);
+});
+// flow
+const STG = [['1', 'Disusun', 'Unit kerja menyusun langsung di studio atau mengunggah berkas.'], ['2', 'Diajukan', 'Dikirim ke Biro Ortala MR tanpa surat pengantar berlembar-lembar.'], ['3', 'Direview', 'Catatan perbaikan disampaikan langsung pada dokumennya.'], ['4', 'Ditetapkan', 'Disetujui, diberi lembar pengesahan, lalu terbit & tercatat.']];
+const STGX = [90, 360, 630, 900];
+STG.forEach(([n, h, p], i) => { const e = document.createElement('div'); e.className = 'stg'; e.id = 'sg' + i; e.style.left = STGX[i] + 'px'; e.style.top = '210px'; e.innerHTML = `<div class="n">${n}</div><h4>${h}</h4><p>${p}</p>`; $('#stgs').appendChild(e); });
+// advantages
+const ADV = [
+  ['📚', 'Satu Sumber, Satu Versi', 'Tidak ada lagi “berkas mana yang terbaru” — hanya ada satu.'],
+  ['🔔', 'Riwayat & Notifikasi', 'Setiap perubahan status terekam; tiap tahap memicu notifikasi.'],
+  ['🛠', 'Dibuat Langsung di Aplikasi', 'Studio BPMN, Studio SOP, dan Studio Standar Pelayanan.'],
+  ['🔁', 'Impor & Ekspor', 'Impor PDF, Word, Visual Paradigm. Ekspor PDF, DOCX, Excel.'],
+  ['💬', 'Review di Dokumennya', 'Catatan revisi ditulis langsung pada dokumen, bukan surel berantai.'],
+  ['📊', 'Dashboard & Tautan Bagikan', 'Pantau capaian tiap unit kerja; bagikan dokumen terbit lewat satu tautan.']
+];
+ADV.forEach(([ic, h, p], i) => { const e = document.createElement('div'); e.className = 'adv'; e.id = 'av' + i; e.style.left = (90 + (i % 3) * 380) + 'px'; e.style.top = (96 + Math.floor(i / 3) * 215) + 'px'; e.innerHTML = `<div class="ic">${ic}</div><h4>${h}</h4><p>${p}</p>`; $('#advs').appendChild(e); });
+// bars
+[['#059669', 386], ['#2563eb', 642], ['#7c3aed', 220]].forEach(([c, v], i) => { const b = document.createElement('div'); b.className = 'bar'; b.dataset.h = v / 642 * 100; b.style.cssText = `width:60px;background:${c};border-radius:6px 6px 0 0;height:0`; $('#bars').appendChild(b); });
+// studio nodes (koordinat relatif canvas, y sudah termasuk header 30px)
+const ND = [
+  { t: 't', x: 117, y: 70, txt: 'Mulai' },
+  { t: 'p', x: 117, y: 140, txt: 'Mengajukan permohonan' },
+  { t: 'p', x: 350, y: 210, txt: 'Memeriksa kelengkapan berkas' },
+  { t: 'd', x: 350, y: 295, txt: 'Lengkap?' },
+  { t: 'p', x: 583, y: 295, txt: 'Memverifikasi data' },
+  { t: 't', x: 583, y: 375, txt: 'Selesai' },
+];
+const nodesEl = $('#nodes');
+ND.forEach((n, i) => {
+  const e = document.createElement('div');
+  if (n.t === 'd') { e.className = 'dm'; e.innerHTML = `<svg viewBox="0 0 96 62"><polygon points="48,2 94,31 48,60 2,31" fill="#fef3c7" stroke="#d97706" stroke-width="2"/></svg><span>${n.txt}</span>`; e.style.left = (n.x - 48) + 'px'; e.style.top = (n.y - 31) + 'px'; }
+  else { e.className = 'nd ' + n.t; e.textContent = n.txt; const w = n.t === 'p' ? 128 : 104, h = n.t === 'p' ? 42 : 34; e.style.left = (n.x - w / 2) + 'px'; e.style.top = (n.y - h / 2) + 'px'; }
+  e.id = 'nd' + i; nodesEl.appendChild(e);
+});
+const AR = [ // path d, label
+  'M117 87 L117 119', 'M117 161 L117 210 L286 210', 'M350 231 L350 264', 'M398 295 L519 295', 'M583 316 L583 358'
+];
+const arEl = $('#arrows');
+arEl.innerHTML = '<defs><marker id="mh" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8z" fill="#334155"/></marker></defs>' +
+  AR.map((d, i) => `<path id="ar${i}" d="${d}" fill="none" stroke="#334155" stroke-width="2" pathLength="1" stroke-dasharray="1" stroke-dashoffset="1" marker-end="url(#mh)"/>`).join('') +
+  '<text id="yaT" x="440" y="288" font-size="11" font-weight="800" fill="#166534" opacity="0">Ya</text>';
+
+/* ---------- kursor ---------- */
+const cursor = $('#cursor'), rip = $('#rip');
+function cur(f, pts) {
+  const P = pts.map(p => ({ f: p[0], pos: typeof p[1] === 'string' ? center(p[1]) : p[1], click: p[2] }));
+  let pos = P[0].pos;
+  for (let i = 0; i < P.length - 1; i++) {
+    if (f >= P[i].f && f < P[i + 1].f) {
+      const s = P[i].f + 0.012; const k = ease(clamp((f - s) / (P[i + 1].f - s)));
+      pos = [P[i].pos[0] + (P[i + 1].pos[0] - P[i].pos[0]) * k, P[i].pos[1] + (P[i + 1].pos[1] - P[i].pos[1]) * k]; break;
+    }
+    if (f >= P[i + 1].f) pos = P[i + 1].pos;
+  }
+  cursor.style.opacity = 1; cursor.style.left = (pos[0] - 4) + 'px'; cursor.style.top = (pos[1] - 3) + 'px';
+  let rp = 0, rpos = pos;
+  P.forEach(p => { if (p.click && f >= p.f && f < p.f + 0.03) { rp = (f - p.f) / 0.03; rpos = p.pos; } });
+  rip.style.opacity = rp ? (1 - rp) : 0; rip.style.left = rpos[0] + 'px'; rip.style.top = rpos[1] + 'px'; rip.style.transform = `scale(${0.4 + rp * 1.1})`;
+}
+
+/* ---------- state aplikasi ---------- */
+function app(page, title) {
+  ['pLogin', 'pDash', 'pSop', 'pStudio'].forEach(id => { const e = document.getElementById(id); setOp(e, id === page ? 1 : 0); });
+  $('#side').style.display = page === 'pLogin' ? 'none' : 'block'; $('#main').style.display = page === 'pLogin' ? 'none' : 'block';
+  $('#hTitle').textContent = title || '';
+  $('#nDash').classList.toggle('on', page === 'pDash'); $('#nSop').classList.toggle('on', page === 'pSop' || page === 'pStudio');
+}
+function badge(cls, txt) { const b = $('#stBadge'); b.className = 'badge ' + cls; b.textContent = txt; }
+function toast(txt, o) { const t = $('#toast'); t.textContent = txt; t.style.opacity = o; t.style.transform = `translateY(${(1 - o) * -10}px)`; }
+function modal(bg, m, o) { setOp($(bg), o); setOp($(m), o); $(m).style.transform = `translate(-50%,-50%) scale(${0.94 + 0.06 * o})`; }
+function nodesTo(n, f) { ND.forEach((_, i) => { setOp($('#nd' + i), 0); }); for (let i = 0; i < ND.length; i++) { const p = clamp(n[i] === undefined ? 0 : n[i]); const e = $('#nd' + i); e.style.opacity = p; e.style.visibility = p > 0 ? 'visible' : 'hidden'; e.style.transform = `scale(${0.85 + 0.15 * p})`; } }
+function studioNodes(ts) { // ts: waktu muncul tiap node, ar sesudahnya
+  const f = ts.f;
+  ND.forEach((_, i) => { const p = ramp(f, ts.n[i], ts.n[i] + 0.035); const e = $('#nd' + i); e.style.opacity = p; e.style.visibility = p > 0 ? 'visible' : 'hidden'; e.style.transform = `scale(${0.85 + 0.15 * p})`; });
+  AR.forEach((_, i) => { const p = ramp(f, ts.a[i], ts.a[i] + 0.05); const a = $('#ar' + i); a.style.strokeDashoffset = 1 - p; a.setAttribute('marker-end', p > .97 ? 'url(#mh)' : 'none'); });
+  $('#yaT').setAttribute('opacity', ramp(f, ts.a[3] + .03, ts.a[3] + .07));
+}
+function studioFull() { studioNodes({ f: 1, n: [0, 0, 0, 0, 0, 0], a: [0, 0, 0, 0, 0] }); }
+const NT = { n: [.04, .15, .27, .41, .53, .66], a: [.08, .2, .32, .46, .58] };
+
+/* ---------- beats ---------- */
+const B = [];
+// 0 intro
+B[0] = { scene: 0, draw(f) {
+  setOp($('#outro'), 0);
+  const clear = ramp(f, .5, .72);
+  CH.forEach((_, i) => { const e = $('#ch' + i); const x = CHP[i][0] + Math.sin(f * 7 + i) * 8, y = CHP[i][1] + Math.cos(f * 6 + i * 2) * 8; const appear = ramp(f, i * .03, i * .03 + .08);
+    e.style.left = (x + clear * (i % 2 ? 900 : -900)) + 'px'; e.style.top = y + 'px'; e.style.opacity = appear * (1 - clear); e.style.transform = `rotate(${(i % 3 - 1) * 4 + clear * (i % 2 ? 20 : -20)}deg)`; });
+  setOp($('#introLogo'), ramp(f, .6, .78), (1 - ramp(f, .6, .78)) * 24);
+}};
+// 1 definisi
+B[1] = { scene: 1, draw(f) {
+  setOp($('#defName'), ramp(f, .03, .18), (1 - ramp(f, .03, .18)) * 20);
+  setOp($('#defLogo'), ramp(f, .1, .25));
+  [0, 1, 2].forEach(i => setOp($('#dc' + i), ramp(f, .38 + i * .07, .46 + i * .07), 0));
+  [0, 1, 2, 3].forEach(i => { const p = ramp(f, .66 + i * .06, .74 + i * .06); setOp($('#dd' + i), p, (1 - p) * 16); });
+}};
+// 2 alur dokumen
+B[2] = { scene: 2, draw(f) { flow(clamp((f - .05) / .93)); } };
+function flow(g) {
+  [0, 1, 2, 3].forEach(i => { const e = $('#sg' + i); setOp(e, ramp(g, i * .06, i * .06 + .1), 0); const act = g >= i * .12 + .05 && (i === 3 || g < i * .12 + .17); e.style.borderColor = act ? '#e3d3a0' : 'rgba(255,255,255,.18)'; e.style.background = act ? 'rgba(162,144,97,.28)' : 'rgba(255,255,255,.07)'; });
+  const tx = 90 + 115 + ramp(g, .05, .5) * (900 - 90); const tok = $('#tok'); tok.style.left = (tx - 27) + 'px'; tok.style.top = '125px'; setOp(tok, ramp(g, .02, .08) * (1 - ramp(g, .55, .62)), 0);
+  setOp($('#fnote1'), ramp(g, .6, .72)); setOp($('#fnote2'), ramp(g, .78, .9));
+}
+// 3..6 kelebihan
+function adv(hi, extra) { // hi: array index yang aktif
+  ADV.forEach((_, i) => { const e = $('#av' + i); const active = hi.includes(i); const seen = e._seen; e.style.opacity = active ? 1 : (e._seen ? .38 : 0); e.style.visibility = (active || e._seen) ? 'visible' : 'hidden'; e.style.borderColor = active ? '#e3d3a0' : 'rgba(255,255,255,.16)'; e.style.background = active ? 'rgba(162,144,97,.22)' : 'rgba(255,255,255,.07)'; e.style.transform = active ? 'scale(1.03)' : 'scale(1)'; });
+}
+function advBeat(k, hi, prior, f, free) {
+  ADV.forEach((_, i) => { const e = $('#av' + i); const active = hi.includes(i); const was = prior.includes(i);
+    const p = active ? ramp(f, .04 + hi.indexOf(i) * .12, .16 + hi.indexOf(i) * .12) : 1;
+    let op = active ? p : (was ? .4 : 0); e.style.opacity = op; e.style.visibility = op > 0 ? 'visible' : 'hidden';
+    e.style.borderColor = active ? '#e3d3a0' : 'rgba(255,255,255,.16)'; e.style.background = active ? 'rgba(162,144,97,.22)' : 'rgba(255,255,255,.07)';
+    e.style.transform = `translateY(${active ? (1 - p) * 20 : 0}px) scale(${active ? 1.02 : 1})`; });
+  setOp($('#free'), free ? ramp(f, .7, .85) : 0);
+}
+B[3] = { scene: 3, draw(f) { advBeat(3, [0, 1], [], f); } };
+B[4] = { scene: 3, draw(f) { advBeat(4, [2, 3], [0, 1], f); } };
+B[5] = { scene: 3, draw(f) { advBeat(5, [4], [0, 1, 2, 3], f); } };
+B[6] = { scene: 3, draw(f) { advBeat(6, [5], [0, 1, 2, 3, 4], f, true); } };
+
+// 7 login
+B[7] = { scene: 4, draw(f) {
+  app('pLogin');
+  typ($('#inUser'), 'budi.unitkerja', ramp(f, .16, .4), f < .5); $('#inUser').classList.toggle('f', f >= .14 && f < .5);
+  typ($('#inPass'), '••••••••••', ramp(f, .5, .68), f >= .5 && f < .76); $('#inPass').classList.toggle('f', f >= .48 && f < .76);
+  $('#btnLogin').style.filter = f > .86 ? 'brightness(.85)' : 'none'; $('#btnLogin').textContent = f > .88 ? 'Memuat…' : 'Masuk';
+  cur(f, [[0, [820, 120]], [.12, '#inUser'], [.14, '#inUser', true], [.46, '#inPass'], [.48, '#inPass', true], [.78, '#btnLogin'], [.84, '#btnLogin', true], [1, '#btnLogin']]);
+}};
+// 8 dashboard
+B[8] = { scene: 4, draw(f) {
+  app('pDash', 'Dashboard');
+  document.querySelectorAll('.sn').forEach(e => e.textContent = Math.round(+e.dataset.v * out3(ramp(f, .04, .3))).toLocaleString('id-ID'));
+  document.querySelectorAll('.bar').forEach(e => e.style.height = (e.dataset.h * 2.1 * out3(ramp(f, .08, .4))) + 'px');
+  const open = ramp(f, .58, .7);
+  document.querySelectorAll('.sr').forEach(e => { e.style.display = open > 0.5 ? 'table-row' : 'none'; });
+  $('#u1').style.background = open > 0.5 ? '#eff6ff' : 'transparent';
+  document.querySelectorAll('.ur').forEach(e => e.style.opacity = 1);
+  cur(f, [[0, [1100, 560]], [.45, '#u1'], [.58, '#u1', true], [.8, '#s1'], [1, '#s1']]);
+}};
+// 9 menu Buat SOP
+B[9] = { scene: 4, draw(f) {
+  const onSop = f > .3; app(onSop ? 'pSop' : 'pDash', onSop ? 'Buat SOP' : 'Dashboard');
+  document.querySelectorAll('.sr').forEach(e => e.style.display = 'none'); $('#u1').style.background = 'transparent';
+  document.querySelectorAll('.sn').forEach(e => e.textContent = (+e.dataset.v).toLocaleString('id-ID'));
+  document.querySelectorAll('.bar').forEach(e => e.style.height = (e.dataset.h * 2.1) + 'px');
+  $('#btnNew').style.filter = f > .78 ? 'brightness(.85)' : 'none';
+  cur(f, [[0, [900, 300]], [.25, '#nSop'], [.3, '#nSop', true], [.62, '#btnNew'], [.76, '#btnNew', true], [1, '#btnNew']]);
+}};
+// 10 form
+B[10] = { scene: 4, draw(f) {
+  app('pSop', 'Buat SOP'); const mo = ramp(f, .02, .12); modal('#mSopBg', '#mSop', mo);
+  typ($('#fJudul'), 'SOP Pelayanan Pengecekan Sertipikat', ramp(f, .14, .5), f < .55); $('#fJudul').classList.toggle('f', f < .55);
+  typ($('#fJenis'), f > .56 ? 'SOP Pelayanan ▾' : '', 1); $('#fKlas').textContent = f > .64 ? 'Terbuka ▾' : ''; $('#fSub').textContent = f > .72 ? 'Biro Organisasi, Tata Laksana, dan Manajemen Risiko ▾' : '';
+  [['#fJenis', .56], ['#fKlas', .64], ['#fSub', .72]].forEach(([s, a]) => $(s).classList.toggle('f', f >= a && f < a + .08));
+  $('#btnCreate').style.filter = f > .93 ? 'brightness(.85)' : 'none';
+  cur(f, [[0, [900, 330]], [.12, '#fJudul'], [.14, '#fJudul', true], [.56, '#fJenis'], [.58, '#fJenis', true], [.64, '#fKlas'], [.66, '#fKlas', true], [.72, '#fSub'], [.74, '#fSub', true], [.9, '#btnCreate'], [.92, '#btnCreate', true], [1, '#btnCreate']]);
+}};
+// 11 studio
+B[11] = { scene: 4, draw(f) {
+  app('pStudio', 'Studio SOP'); modal('#mSopBg', '#mSop', 0); badge('b-draft', 'Draft'); $('#toast').style.opacity = 0;
+  studioNodes({ f, n: NT.n, a: NT.a });
+  // properti node ke-3 diketik
+  $('#revP').style.opacity = 0; $('#revP').style.visibility = 'hidden'; $('#propsP').style.opacity = 1;
+  typ($('#prKeg'), 'Memeriksa kelengkapan berkas', ramp(f, .28, .52), f > .28 && f < .56);
+  typ($('#prWaktu'), '', 1);
+  typ($('#prOut'), 'Berkas lengkap / ditolak', ramp(f, .62, .8), f > .62 && f < .82); $('#prOut').classList.toggle('f', f > .6 && f < .84); $('#prKeg').classList.toggle('f', f <= .58);
+  $('#prWaktu').textContent = ''; setOp($('#stSave'), ramp(f, .86, .93));
+  const pts = [[0, [600, 300]]]; [.04, .15, .27, .41, .53, .66].forEach(t => { pts.push([t - .02, '#btnAdd']); pts.push([t - .01, '#btnAdd', true]); });
+  pts.push([.97, '#btnAdd']); cur(f, pts);
+}};
+// 12 kirim
+B[12] = { scene: 4, draw(f) {
+  app('pStudio', 'Studio SOP'); modal('#mSopBg', '#mSop', 0); studioFull();
+  $('#revP').style.opacity = 0; $('#revP').style.visibility = 'hidden'; $('#propsP').style.opacity = 1;
+  $('#prKeg').textContent = 'Memeriksa kelengkapan berkas'; $('#prKeg').classList.remove('f'); $('#prOut').textContent = 'Berkas lengkap / ditolak'; $('#prOut').classList.remove('f'); $('#prWaktu').textContent = '';
+  $('#stSave').style.opacity = 1; $('#stSave').style.visibility = 'visible';
+  const sent = f > .5; badge(sent ? 'b-pend' : 'b-draft', sent ? 'Pending' : 'Draft');
+  $('#btnSend').style.filter = (f > .42 && f < .5) ? 'brightness(.85)' : 'none';
+  toast('✓ Dokumen terkirim ke Biro Ortala MR', ramp(f, .52, .6) * (1 - ramp(f, .9, 1)));
+  cur(f, [[0, '#btnAdd'], [.4, '#btnSend'], [.46, '#btnSend', true], [1, [900, 330]]]);
+}};
+// 13 review
+B[13] = { scene: 4, draw(f) {
+  app('pStudio', 'Studio SOP'); modal('#mSopBg', '#mSop', 0); studioFull();
+  $('#propsP').style.opacity = f < .12 ? 1 : 0; const rv = $('#revP'); rv.style.visibility = 'visible'; rv.style.opacity = ramp(f, .1, .2);
+  if (f < .1) { rv.style.visibility = 'hidden'; }
+  $('#prKeg').textContent = 'Memeriksa kelengkapan berkas'; $('#prKeg').classList.remove('f'); $('#prOut').classList.remove('f'); $('#prOut').textContent = 'Berkas lengkap / ditolak';
+  $('#stSave').style.opacity = 1; $('#stSave').style.visibility = 'visible';
+  const n1 = ramp(f, .16, .26), n2 = ramp(f, .56, .66), n3 = ramp(f, .8, .9);
+  $('#note1').style.opacity = n1; $('#note2').style.opacity = n2; $('#note3').style.opacity = n3;
+  let b = ['b-pend', 'Pending']; if (f > .26 && f < .48) b = ['b-rej', 'Perlu Revisi']; else if (f >= .48 && f < .72) b = ['b-pend', 'Pending']; else if (f >= .72 && f < .8) b = ['b-pend', 'Pending']; else if (f >= .8) b = ['b-ok', 'Approved']; if (f >= .26 && f < .3) b = ['b-rej', 'Perlu Revisi'];
+  // perbaikan (f .3-.46): setelah ditulis, kirim ulang
+  if (f >= .3 && f < .48) b = ['b-rej', 'Perlu Revisi'];
+  badge(b[0], b[1]);
+  // properti terisi waktu: tampilkan overlay kecil pada node 3 bila revisi dikerjakan
+  $('#nd2').innerHTML = f > .4 ? 'Memeriksa kelengkapan berkas<br><span style="font-size:9.5px;color:#1e3a8a">⏱ 10 menit</span>' : 'Memeriksa kelengkapan berkas';
+  $('#btnSend').textContent = f > .42 && f < .5 ? '➤ Kirim Ulang' : (f >= .5 ? '➤ Kirim ke Biro Ortala MR' : '➤ Kirim ke Biro Ortala MR');
+  $('#btnSend').style.filter = (f > .44 && f < .5) ? 'brightness(.85)' : 'none';
+  toast(f >= .8 && f < .95 ? '✓ SOP disetujui' : (f > .48 && f < .56 ? '✓ Dikirim ulang' : ''), f >= .8 ? ramp(f, .8, .86) * (1 - ramp(f, .95, 1)) : ramp(f, .48, .52) * (1 - ramp(f, .55, .6)));
+  cur(f, [[0, [900, 330]], [.16, '#note1'], [.36, '#nd2'], [.4, '#nd2', true], [.46, '#btnSend'], [.48, '#btnSend', true], [.7, '#note2'], [1, '#note3']]);
+}};
+// 14 terbit & bagikan
+B[14] = { scene: 4, draw(f) {
+  app('pStudio', 'Studio SOP'); studioFull(); modal('#mSopBg', '#mSop', 0);
+  $('#propsP').style.opacity = 0; const rv = $('#revP'); rv.style.visibility = 'visible'; rv.style.opacity = 1; ['#note1', '#note2', '#note3'].forEach(s => $(s).style.opacity = 1);
+  $('#nd2').innerHTML = 'Memeriksa kelengkapan berkas<br><span style="font-size:9.5px;color:#1e3a8a">⏱ 10 menit</span>';
+  $('#stSave').style.opacity = 1; $('#stSave').style.visibility = 'visible';
+  badge(f < .08 ? 'b-ok' : 'b-ok', f < .12 ? 'Approved' : 'Terbit'); $('#btnSend').textContent = '➤ Kirim ke Biro Ortala MR';
+  const dl = f > .3 && f < .38; $('#btnPdf').style.filter = dl ? 'brightness(.85)' : 'none';
+  toast(f > .32 && f < .5 ? '⬇ SOP.pdf diunduh' : '', f > .32 && f < .5 ? ramp(f, .32, .38) * (1 - ramp(f, .44, .5)) : 0);
+  const mo = ramp(f, .56, .64) * (f < .93 ? 1 : 1 - ramp(f, .93, .99)); modal('#mShBg', '#mShare', mo);
+  $('#btnCopy').textContent = f > .8 ? 'Disalin ✓' : 'Salin'; setOp($('#copied'), ramp(f, .8, .86));
+  cur(f, [[0, [900, 330]], [.24, '#btnPdf'], [.3, '#btnPdf', true], [.52, [1100, 300]], [.62, [1100, 300]], [.74, '#btnCopy'], [.8, '#btnCopy', true], [1, '#btnCopy']]);
+}};
+// 15 penutup
+const OUTRO = [['📚', 'Satu versi dokumen'], ['⚡', 'Alur dari susun hingga tetapkan'], ['🔗', 'Mudah dibagikan']];
+B[15] = { scene: 0, draw(f) {
+  CH.forEach((_, i) => setOp($('#ch' + i), 0));
+  setOp($('#introLogo'), 0); const il = $('#outro'); setOp(il, 1, 0);
+  il.innerHTML = `<img src="logo.png" style="width:130px;height:130px;object-fit:contain"><h1 class="big" style="font-size:70px">E-SIMPEL</h1><div class="sub" style="margin-bottom:6px">Satu ruang kerja · Satu versi dokumen</div>
+  <div style="display:flex;gap:14px;margin-top:6px">${OUTRO.map(([a, b], i) => `<span class="pill" style="opacity:${ramp(f, .15 + i * .1, .25 + i * .1)}">${a} ${b}</span>`).join('')}</div>
+  <div style="margin-top:20px;font-size:21px;color:#d3deec;opacity:${ramp(f, .55, .7)}">Butuh bantuan? Menu <b style="color:#e3d3a0">Panduan Penggunaan</b> · <b style="color:#e3d3a0">HelpDesk</b></div>`;
+}};
+
+/* ---------- render ---------- */
+let lastIntroHTML = null;
+function render(t) {
+  t = clamp(t, 0, TOTAL - 0.001);
+  let bi = 0; for (let i = 0; i < START.length; i++) if (t >= START[i]) bi = i;
+  const lt = t - START[bi], d = DUR[bi], f = lt / d;
+  const b = B[bi];
+  // reset intro DOM bila perlu
+  if (bi < 15 && lastIntroHTML !== null) { location.reload; }
+  const sc = typeof b.scene === 'function' ? b.scene(f) : b.scene;
+  SCENES.forEach((e, i) => { if (i !== sc) { e.style.opacity = 0; e.style.visibility = 'hidden'; } });
+  const first = bi === 0 || (typeof B[bi - 1].scene === 'function' ? B[bi - 1].scene(1) : B[bi - 1].scene) !== sc || (bi === 15);
+  const cs = SCENES[sc]; const fade = (first ? ramp(lt, 0, .5) : 1) * (bi === 14 + 1 && false ? 1 : 1);
+  cs.style.opacity = fade; cs.style.visibility = 'visible';
+  // keluar dari scene pada akhir beat bila berikutnya beda scene
+  cursor.style.opacity = 0; rip.style.opacity = 0;
+  $('#tag').style.opacity = sc === 4 ? 1 : 0;
+  if (bi === 15 && !window.__outro) { window.__outro = true; }
+  b.draw(f);
+  // caption per kalimat
+  const text = NARASI[bi]; const sents = text.match(/[^.!?]+[.!?]+/g) || [text]; const speech = d - 0.7; const total = text.length; let c = 0, shown = sents[0];
+  const tt = lt; for (const s of sents) { const len = s.length / total * speech; if (tt >= c && tt < c + len + (s === sents[sents.length - 1] ? 5 : 0)) { shown = s; break; } c += len; shown = s; }
+  $('#cap').textContent = shown.trim(); $('#cap').style.opacity = ramp(lt, .1, .3);
+  $('#bar').style.width = (t / TOTAL * 1280) + 'px';
+}
+window.render = render; window.TOTAL = TOTAL; window.START = START;
+render(0);
+</script>
+</body></html>

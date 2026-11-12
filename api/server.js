@@ -8,10 +8,12 @@ pg.types.setTypeParser(1082, (v) => v);
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const path = require('path');
+const fs = require('fs');
 const puppeteer = require('puppeteer');
 const { PDFDocument } = require('pdf-lib');
 const spDocument = require('./spDocument'); // naskah Standar Pelayanan: HTML/PDF, DOCX, impor Word
-const rateLimit = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 require('dotenv').config({ path: __dirname + '/.env' });
 
 const app = express();
@@ -378,10 +380,13 @@ const initDatabase = async () => {
       CREATE UNIQUE INDEX IF NOT EXISTS reviews_user_nama_uq ON reviews (user_id, (LOWER(nama)));
       /* Chat HelpDesk (kotak masuk bersama): tiap percakapan milik satu akun User (Terbatas);
          satu akun boleh punya banyak percakapan (dipakai beberapa bagian). Admin & superadmin
-         mana pun dapat membalas. Penanda baca = watermark id pesan per percakapan. */
+         mana pun dapat membalas. Penanda baca = watermark id pesan per percakapan.
+         is_public = TRUE menandai SATU percakapan khusus "Pengumuman": terlihat oleh semua
+         peran (user/admin/superadmin), tapi hanya admin & superadmin yang boleh mengirim
+         pesan ke dalamnya — user_id-nya NULL karena tak bermilik ke satu akun User mana pun. */
       CREATE TABLE IF NOT EXISTS chat_conversations (
         id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
+        user_id INTEGER,
         judul VARCHAR(120),
         created_by INTEGER,
         created_at TIMESTAMP DEFAULT NOW(),
@@ -389,7 +394,8 @@ const initDatabase = async () => {
         staff_read_by VARCHAR(255),
         staff_read_at TIMESTAMP,
         user_read_upto INTEGER NOT NULL DEFAULT 0,
-        user_read_at TIMESTAMP
+        user_read_at TIMESTAMP,
+        is_public BOOLEAN NOT NULL DEFAULT false
       );
       CREATE INDEX IF NOT EXISTS chat_conversations_user_idx ON chat_conversations (user_id);
       CREATE TABLE IF NOT EXISTS chat_messages (
@@ -412,6 +418,25 @@ const initDatabase = async () => {
         message_id INTEGER PRIMARY KEY,
         data BYTEA NOT NULL
       );
+      -- Penanda baca per-pengguna untuk percakapan publik (banyak pembaca, bukan 2 pihak
+      -- seperti kotak masuk biasa, jadi tak bisa pakai watermark staff/user tunggal).
+      CREATE TABLE IF NOT EXISTS chat_public_read (
+        user_id INTEGER PRIMARY KEY,
+        read_upto INTEGER NOT NULL DEFAULT 0,
+        read_at TIMESTAMP
+      );
+      -- Reaksi emoji per pesan (gaya Discord). Dipakai di semua percakapan; di forum
+      -- Pengumuman inilah satu-satunya cara User (Terbatas) merespons, karena hanya
+      -- admin/superadmin yang boleh mengirim pesan di sana.
+      CREATE TABLE IF NOT EXISTS chat_reactions (
+        id SERIAL PRIMARY KEY,
+        message_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        emoji VARCHAR(16) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (message_id, user_id, emoji)
+      );
+      CREATE INDEX IF NOT EXISTS chat_reactions_msg_idx ON chat_reactions (message_id);
       /* Notifikasi dibatasi sampai Sub-Unit (L2): biro lain di bawah unit utama yang sama
          tidak boleh saling melihat notifikasi. NULL = berlaku untuk seluruh L1. */
       ALTER TABLE notifications ADD COLUMN IF NOT EXISTS unit_l2 TEXT;
@@ -686,6 +711,28 @@ const initDatabase = async () => {
         BEGIN ALTER TABLE sop_models ALTER COLUMN process_title TYPE VARCHAR(500); EXCEPTION WHEN others THEN NULL; END;
         BEGIN ALTER TABLE bpmn_models ALTER COLUMN process_title TYPE VARCHAR(500); EXCEPTION WHEN others THEN NULL; END;
       END $$;
+    `);
+
+    // MIGRASI: chat publik "Pengumuman" — satu percakapan khusus terlihat semua peran, hanya
+    // admin/superadmin boleh mengirim. DB yang sudah berjalan: longgarkan user_id & tambah kolom.
+    await client.query(`
+      DO $$
+      BEGIN
+        BEGIN ALTER TABLE chat_conversations ALTER COLUMN user_id DROP NOT NULL; EXCEPTION WHEN others THEN NULL; END;
+        BEGIN ALTER TABLE chat_conversations ADD COLUMN is_public BOOLEAN NOT NULL DEFAULT false; EXCEPTION WHEN duplicate_column THEN NULL; END;
+      END $$;
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS chat_public_read (
+        user_id INTEGER PRIMARY KEY,
+        read_upto INTEGER NOT NULL DEFAULT 0,
+        read_at TIMESTAMP
+      );
+    `);
+    await client.query(`
+      INSERT INTO chat_conversations (user_id, judul, is_public)
+      SELECT NULL, 'Pengumuman', true
+      WHERE NOT EXISTS (SELECT 1 FROM chat_conversations WHERE is_public = true);
     `);
 
     const roles = await client.query("SELECT COUNT(*) FROM roles");
@@ -2444,6 +2491,55 @@ app.post('/api/process-map/models/:id/sync-children', authenticate, requireSuper
 });
 
 // ====== EXPORT PDF VEKTOR (F4 330x215mm) via headless Chrome ======
+// Profil Chrome KHUSUS di dalam folder aplikasi — Puppeteer tanpa userDataDir mem-
+// buat profil via mkdtemp() di %TEMP% milik proses; di Windows (service/task
+// scheduler berjalan sbg user/akun berbeda dari pemilik %TEMP%) itu berujung
+// "EPERM: operation not permitted, mkdtemp ...puppeteer_dev_chrome_profile-".
+// Folder ini milik & ditulis oleh proses Node sendiri sehingga izinnya pasti cocok.
+const PUPPETEER_PROFILE_ROOT = path.join(__dirname, '.puppeteer-profiles');
+try { fs.mkdirSync(PUPPETEER_PROFILE_ROOT, { recursive: true }); } catch (e) {
+  console.error('Gagal menyiapkan folder profil Puppeteer:', e.message);
+}
+// Folder TEMP khusus Chrome sendiri (BUKAN milik Puppeteer/Node) — dipakai internal Chrome
+// mis. devtools_stream_file.cc saat menyalurkan hasil page.pdf() lewat CDP IO.read. Akar
+// masalahnya sama dengan userDataDir di atas: %TEMP% bawaan Windows milik proses ini tak
+// bisa diandalkan di sini, dan saat Chrome gagal buat file sementara di sana, Puppeteer
+// hanya melihatnya sebagai "Protocol error (IO.read): Read failed" (pesan generik, bukan
+// pesan crash asli — baru ketahuan lewat dumpio: true yang mencatat stderr Chrome sendiri).
+const PUPPETEER_CHROME_TMP = path.join(__dirname, '.puppeteer-tmp');
+try { fs.mkdirSync(PUPPETEER_CHROME_TMP, { recursive: true }); } catch (e) {
+  console.error('Gagal menyiapkan folder TEMP Chrome:', e.message);
+}
+
+async function launchPdfBrowser() {
+  const profileDir = path.join(PUPPETEER_PROFILE_ROOT, crypto.randomUUID());
+  const opts = {
+    headless: 'new',
+    userDataDir: profileDir,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // TMP/TEMP dialihkan ke folder aplikasi sendiri agar Chrome tak bergantung %TEMP% Windows.
+    env: { ...process.env, TMP: PUPPETEER_CHROME_TMP, TEMP: PUPPETEER_CHROME_TMP },
+    dumpio: true,
+  };
+  let browser;
+  try {
+    browser = await puppeteer.launch(opts);
+  } catch (e) {
+    // Sesekali Chrome gagal start di percobaan pertama (mis. antivirus masih memindai berkas
+    // biner yang baru diunduh) — satu kali coba ulang setelah jeda singkat sebelum menyerah.
+    console.error('Puppeteer launch gagal, mencoba ulang sekali:', e.message);
+    await new Promise((r) => setTimeout(r, 1500));
+    browser = await puppeteer.launch(opts);
+  }
+  return { browser, profileDir };
+}
+
+async function closePdfBrowser(browser, profileDir) {
+  if (browser) { try { await browser.close(); } catch (e) { /* abaikan */ } }
+  // Profil sekali-pakai — bersihkan agar folder tak menumpuk ribuan subfolder kosong.
+  if (profileDir) { try { fs.rmSync(profileDir, { recursive: true, force: true }); } catch (e) { /* abaikan */ } }
+}
+
 // Semaphore: batasi max 2 render Puppeteer berjalan bersamaan agar RAM tidak habis.
 const _pdfSemaphore = (() => {
   let running = 0;
@@ -2468,7 +2564,7 @@ const _pdfSemaphore = (() => {
 const pdfLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
-  keyGenerator: (req) => (req.user && req.user.id ? `u${req.user.id}` : (req.ip || 'anon')),
+  keyGenerator: (req) => (req.user && req.user.id ? `u${req.user.id}` : ipKeyGenerator(req.ip || '0.0.0.0')),
   message: { error: 'Terlalu banyak permintaan PDF. Coba lagi dalam 1 menit.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -2479,7 +2575,7 @@ const pdfLimiter = rateLimit({
 // Halaman 1: diagram (SVG tersimpan) + kepala dokumen. Khusus L2: halaman 2 =
 // PETA RELASI formal (kolom per kegiatan berisi lembaga internal & eksternal).
 app.get('/api/process-map/models/:id/pdf', authenticate, requireSuperadmin, pdfLimiter, async (req, res) => {
-  let browser;
+  let browser, profileDir;
   let semaphoreAcquired = false;
   try {
     const q = await pool.query('SELECT * FROM process_map_models WHERE id = $1', [req.params.id]);
@@ -2550,7 +2646,7 @@ app.get('/api/process-map/models/:id/pdf', authenticate, requireSuperadmin, pdfL
 
     await _pdfSemaphore.acquire();
     semaphoreAcquired = true;
-    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    ({ browser, profileDir } = await launchPdfBrowser());
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
 
@@ -2572,7 +2668,7 @@ app.get('/api/process-map/models/:id/pdf', authenticate, requireSuperadmin, pdfL
     console.error('[ROUTE ERROR]', req.method, req.path, err.message);
     if (!res.headersSent) res.status(500).json({ error: err.message || 'Gagal membuat PDF' });
   } finally {
-    if (browser) { try { await browser.close(); } catch (e) { /* abaikan */ } }
+    await closePdfBrowser(browser, profileDir);
     if (semaphoreAcquired) _pdfSemaphore.release();
   }
 });
@@ -2581,7 +2677,7 @@ app.get('/api/process-map/models/:id/pdf', authenticate, requireSuperadmin, pdfL
 // Chrome headless langsung dari SVG (bukan raster PNG seperti sebelumnya).
 // Stateless: klien mengirim SVG halaman utama + sub-proses tercentang + metadata.
 app.post('/api/bpmn/pdf', authenticate, pdfLimiter, async (req, res) => {
-  let browser;
+  let browser, profileDir;
   let semaphoreAcquired = false;
   try {
     const { title, unit1, unit2, filename, pages } = req.body;
@@ -2648,7 +2744,7 @@ app.post('/api/bpmn/pdf', authenticate, pdfLimiter, async (req, res) => {
 
     await _pdfSemaphore.acquire();
     semaphoreAcquired = true;
-    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    ({ browser, profileDir } = await launchPdfBrowser());
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
     const safe = String(filename || title || 'BPMN')
@@ -2665,7 +2761,7 @@ app.post('/api/bpmn/pdf', authenticate, pdfLimiter, async (req, res) => {
     console.error('[ROUTE ERROR]', req.method, req.path, err.message);
     if (!res.headersSent) res.status(500).json({ error: err.message || 'Gagal membuat PDF' });
   } finally {
-    if (browser) { try { await browser.close(); } catch (e) { /* abaikan */ } }
+    await closePdfBrowser(browser, profileDir);
     if (semaphoreAcquired) _pdfSemaphore.release();
   }
 });
@@ -3440,6 +3536,9 @@ const CHAT_BERKAS = {
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
+// Set emoji reaksi tetap (bukan input bebas) — cukup untuk gaya Discord tanpa perlu
+// validasi emoji arbitrer. Di forum Pengumuman ini satu-satunya cara User merespons.
+const CHAT_REAKSI_IZIN = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', '👏'];
 // Tanda tangan byte awal — jangan percaya ekstensi/mime kiriman klien.
 const chatIsiSesuai = (ext, b) => {
   if (ext === 'png') return b.length > 8 && b.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
@@ -3449,17 +3548,19 @@ const chatIsiSesuai = (ext, b) => {
 };
 const chatLabelUnit = (u) => [u.unit_l2 && String(u.unit_l2).toUpperCase() !== 'SELURUH UNIT' ? u.unit_l2 : '', u.unit_l1 && String(u.unit_l1).toUpperCase() !== 'PUSAT' ? u.unit_l1 : ''].filter(Boolean).join(', ');
 
-// Memuat percakapan :id + memeriksa hak: User → hanya percakapan akunnya; staf → semua.
+// Memuat percakapan :id + memeriksa hak: User → hanya percakapan akunnya ATAU percakapan
+// publik (boleh dibaca, tidak boleh dikirimi — dicek terpisah per rute); staf → semua.
 // Mengembalikan baris percakapan (dengan data akun), atau null (respons error sudah dikirim).
 async function chatKonv(req, res) {
   const role = req.user.role;
   if (role !== 'user' && !CHAT_STAFF.includes(role)) { res.status(403).json({ error: 'HelpDesk tidak tersedia untuk peran Anda' }); return null; }
   const id = parseInt(req.params.id, 10);
   if (!Number.isInteger(id)) { res.status(400).json({ error: 'ID percakapan tidak valid' }); return null; }
+  // LEFT JOIN: percakapan publik tak punya user_id (NULL), jadi tak boleh INNER JOIN ke users.
   const r = await pool.query(
-    `SELECT c.*, u.username, u.nama_lengkap, u.unit_l1, u.unit_l2 FROM chat_conversations c JOIN users u ON u.id = c.user_id WHERE c.id = $1`, [id]);
+    `SELECT c.*, u.username, u.nama_lengkap, u.unit_l1, u.unit_l2 FROM chat_conversations c LEFT JOIN users u ON u.id = c.user_id WHERE c.id = $1`, [id]);
   const c = r.rows[0];
-  if (!c || (role === 'user' && c.user_id !== req.user.id)) { res.status(404).json({ error: 'Percakapan tidak ditemukan' }); return null; }
+  if (!c || (!c.is_public && role === 'user' && c.user_id !== req.user.id)) { res.status(404).json({ error: 'Percakapan tidak ditemukan' }); return null; }
   return c;
 }
 const chatNamaPengirim = async (req) => {
@@ -3467,25 +3568,41 @@ const chatNamaPengirim = async (req) => {
   return r.rows[0]?.nama_lengkap || r.rows[0]?.username || req.user.username;
 };
 const chatKolomBaca = (role) => role === 'user' ? { upto: 'user_read_upto', at: 'user_read_at' } : { upto: 'staff_read_upto', at: 'staff_read_at' };
+// Penanda baca percakapan publik: per-pengguna (bukan watermark staff/user tunggal), karena
+// pembacanya banyak akun lintas unit, bukan 2 pihak seperti kotak masuk biasa.
+const chatBacaPublik = (userId, sampai) => pool.query(
+  `INSERT INTO chat_public_read (user_id, read_upto, read_at) VALUES ($1,$2,NOW())
+   ON CONFLICT (user_id) DO UPDATE SET read_upto = GREATEST(chat_public_read.read_upto, $2), read_at = NOW()`,
+  [userId, sampai]);
 
 // Ringkasan untuk lencana. Staf: jumlah percakapan MENUNGGU BALASAN (pesan terakhir dari User) —
 // bertahan sampai ada yang membalas, walau sudah dibaca admin lain. User: pesan staf belum dibaca.
+// Pesan publik belum dibaca oleh req.user.id (dipakai lencana staf & User).
+async function chatPublikBelumDibaca(userId) {
+  const r = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM chat_messages m JOIN chat_conversations c ON c.id = m.conversation_id
+     WHERE c.is_public = true AND m.deleted_at IS NULL AND m.sender_id <> $1
+       AND m.id > COALESCE((SELECT read_upto FROM chat_public_read WHERE user_id = $1), 0)`, [userId]);
+  return r.rows[0].n;
+}
+
 app.get('/api/chat/ringkasan', authenticate, async (req, res) => {
   try {
     const role = req.user.role;
     if (CHAT_STAFF.includes(role)) {
       const r = await pool.query(
         `SELECT COUNT(*)::int AS n FROM (
-           SELECT DISTINCT ON (conversation_id) conversation_id, sender_role, deleted_at
-           FROM chat_messages ORDER BY conversation_id, id DESC) t
+           SELECT DISTINCT ON (m.conversation_id) m.conversation_id, m.sender_role, m.deleted_at
+           FROM chat_messages m JOIN chat_conversations c ON c.id = m.conversation_id
+           WHERE c.is_public = false ORDER BY m.conversation_id, m.id DESC) t
          WHERE sender_role = 'user' AND deleted_at IS NULL`);
-      return res.json({ badge: r.rows[0].n });
+      return res.json({ badge: r.rows[0].n + await chatPublikBelumDibaca(req.user.id) });
     }
     if (role !== 'user') return res.json({ badge: 0 });
     const r = await pool.query(
       `SELECT COUNT(*)::int AS n FROM chat_messages m JOIN chat_conversations c ON c.id = m.conversation_id
        WHERE c.user_id = $1 AND m.sender_role <> 'user' AND m.deleted_at IS NULL AND m.id > c.user_read_upto`, [req.user.id]);
-    res.json({ badge: r.rows[0].n });
+    res.json({ badge: r.rows[0].n + await chatPublikBelumDibaca(req.user.id) });
   } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
 });
 
@@ -3501,21 +3618,28 @@ app.get('/api/chat/daftar', authenticate, async (req, res) => {
       pool.query(`DELETE FROM chat_conversations c WHERE c.created_at < NOW() - INTERVAL '1 day' AND NOT EXISTS (SELECT 1 FROM chat_messages m WHERE m.conversation_id = c.id)`).catch(() => {});
     }
     const staf = CHAT_STAFF.includes(role);
+    // $1 = req.user.id selalu (dipakai subquery baca publik & filter kepemilikan User).
     const r = await pool.query(
-      `SELECT c.id, c.judul, c.created_at, c.user_id, c.staff_read_upto, c.user_read_upto, u.nama_lengkap, u.username, u.unit_l1, u.unit_l2,
+      `SELECT c.id, c.judul, c.created_at, c.user_id, c.is_public, c.staff_read_upto, c.user_read_upto, u.nama_lengkap, u.username, u.unit_l1, u.unit_l2,
               lm.isi, lm.file_name, lm.deleted_at, lm.sender_role, lm.sender_name, lm.created_at AS waktu_pesan,
-              (SELECT COUNT(*)::int FROM chat_messages x WHERE x.conversation_id = c.id AND x.deleted_at IS NULL
-                 AND x.sender_role ${staf ? "= 'user'" : "<> 'user'"} AND x.id > ${staf ? 'c.staff_read_upto' : 'c.user_read_upto'}) AS belum_dibaca
+              CASE WHEN c.is_public THEN
+                (SELECT COUNT(*)::int FROM chat_messages x WHERE x.conversation_id = c.id AND x.deleted_at IS NULL AND x.sender_id <> $1
+                   AND x.id > COALESCE((SELECT read_upto FROM chat_public_read WHERE user_id = $1), 0))
+              ELSE
+                (SELECT COUNT(*)::int FROM chat_messages x WHERE x.conversation_id = c.id AND x.deleted_at IS NULL
+                   AND x.sender_role ${staf ? "= 'user'" : "<> 'user'"} AND x.id > ${staf ? 'c.staff_read_upto' : 'c.user_read_upto'})
+              END AS belum_dibaca
        FROM chat_conversations c
-       JOIN users u ON u.id = c.user_id
-       LEFT JOIN LATERAL (SELECT * FROM chat_messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1) lm ON true
-       ${staf ? '' : 'WHERE c.user_id = $1'}
-       ORDER BY COALESCE(lm.created_at, c.created_at) DESC LIMIT 300`, staf ? [] : [req.user.id]);
+       LEFT JOIN users u ON u.id = c.user_id
+       LEFT JOIN LATERAL (SELECT * FROM chat_messages WHERE conversation_id = c.id AND deleted_at IS NULL ORDER BY id DESC LIMIT 1) lm ON true
+       ${staf ? '' : 'WHERE c.user_id = $1 OR c.is_public = true'}
+       ORDER BY c.is_public DESC, COALESCE(lm.created_at, c.created_at) DESC LIMIT 300`, [req.user.id]);
     res.json(r.rows.map(x => ({
-      id: x.id, judul: x.judul || '', nama: x.nama_lengkap || x.username, unit: chatLabelUnit(x),
-      pesanTerakhir: !x.sender_role ? 'Belum ada pesan' : x.deleted_at ? 'Pesan telah dihapus' : (x.isi || (x.file_name ? `📎 ${x.file_name}` : '')),
+      id: x.id, judul: x.is_public ? 'Pengumuman' : (x.judul || ''), publik: x.is_public,
+      nama: x.is_public ? 'Pengumuman' : (x.nama_lengkap || x.username), unit: x.is_public ? 'Untuk seluruh unit kerja' : chatLabelUnit(x),
+      pesanTerakhir: !x.sender_role ? 'Belum ada pesan' : (x.isi || (x.file_name ? `📎 ${x.file_name}` : '')),
       dariUser: x.sender_role === 'user', pengirim: x.sender_name, waktu: x.waktu_pesan || x.created_at,
-      menungguBalasan: x.sender_role === 'user' && !x.deleted_at, belumDibaca: x.belum_dibaca,
+      menungguBalasan: !x.is_public && x.sender_role === 'user', belumDibaca: x.belum_dibaca,
     })));
   } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
 });
@@ -3555,8 +3679,17 @@ app.get('/api/chat/percakapan/:id', authenticate, async (req, res) => {
               b.sender_name AS b_nama, b.isi AS b_isi, b.file_name AS b_file, b.deleted_at AS b_dihapus
        FROM chat_messages m LEFT JOIN chat_messages b ON b.id = m.balas_id
        WHERE m.conversation_id = $1 ORDER BY m.id DESC LIMIT 300`, [c.id]);
+    const idPesan = m.rows.map(x => x.id);
+    const reaksiPerPesan = {};
+    if (idPesan.length) {
+      const r = await pool.query(
+        `SELECT message_id, emoji, COUNT(*)::int AS n, COALESCE(bool_or(user_id = $2), false) AS saya
+         FROM chat_reactions WHERE message_id = ANY($1) GROUP BY message_id, emoji`,
+        [idPesan, req.user.id]);
+      for (const x of r.rows) (reaksiPerPesan[x.message_id] ||= []).push({ emoji: x.emoji, n: x.n, saya: x.saya });
+    }
     res.json({
-      lawan: { id: c.id, nama: c.nama_lengkap || c.username, unit: chatLabelUnit(c), judul: c.judul || '' },
+      lawan: { id: c.id, nama: c.is_public ? 'Pengumuman' : (c.nama_lengkap || c.username), unit: c.is_public ? 'Untuk seluruh unit kerja' : chatLabelUnit(c), judul: c.is_public ? 'Pengumuman' : (c.judul || ''), publik: !!c.is_public },
       baca: { staffSampai: c.staff_read_upto, staffOleh: c.staff_read_by || null, userSampai: c.user_read_upto },
       pesan: m.rows.reverse().map(x => ({
         id: x.id, dariUser: x.sender_role === 'user', saya: CHAT_STAFF.includes(req.user.role) ? x.sender_id === req.user.id : x.sender_role === 'user',
@@ -3567,6 +3700,7 @@ app.get('/api/chat/percakapan/:id', authenticate, async (req, res) => {
           id: x.balas_id, pengirim: x.b_nama, dihapus: !!x.b_dihapus,
           isi: x.b_dihapus ? '' : String(x.b_isi || '').slice(0, 140), berkas: x.b_dihapus ? null : x.b_file,
         } : null,
+        reaksi: x.deleted_at ? [] : (reaksiPerPesan[x.id] || []),
       })),
     });
   } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
@@ -3576,6 +3710,7 @@ app.get('/api/chat/percakapan/:id', authenticate, async (req, res) => {
 app.post('/api/chat/percakapan/:id/pesan', authenticate, async (req, res) => {
   try {
     const c = await chatKonv(req, res); if (!c) return;
+    if (c.is_public && !CHAT_STAFF.includes(req.user.role)) return res.status(403).json({ error: 'Hanya admin yang dapat mengirim pesan di forum Pengumuman' });
     const isi = String(req.body.isi || '').replace(/\r\n/g, '\n').trim();
     if (isi.length > CHAT_MAKS_ISI) return res.status(400).json({ error: `Pesan maksimal ${CHAT_MAKS_ISI} karakter` });
     let berkas = null;
@@ -3602,10 +3737,14 @@ app.post('/api/chat/percakapan/:id/pesan', authenticate, async (req, res) => {
       [c.id, req.user.id, nama, req.user.role, isi, balasId, berkas?.nama || null, berkas?.mime || null, berkas?.buf.length || null]);
     if (berkas) await pool.query('INSERT INTO chat_files (message_id, data) VALUES ($1,$2)', [ins.rows[0].id, berkas.buf]);
     // Mengirim = pengirim sudah membaca percakapan sampai pesannya sendiri.
-    const k = chatKolomBaca(req.user.role);
-    await pool.query(
-      `UPDATE chat_conversations SET ${k.upto} = GREATEST(${k.upto}, $2), ${k.at} = NOW()${k.upto === 'staff_read_upto' ? ', staff_read_by = $3' : ''} WHERE id = $1`,
-      k.upto === 'staff_read_upto' ? [c.id, ins.rows[0].id, nama] : [c.id, ins.rows[0].id]);
+    if (c.is_public) {
+      await chatBacaPublik(req.user.id, ins.rows[0].id);
+    } else {
+      const k = chatKolomBaca(req.user.role);
+      await pool.query(
+        `UPDATE chat_conversations SET ${k.upto} = GREATEST(${k.upto}, $2), ${k.at} = NOW()${k.upto === 'staff_read_upto' ? ', staff_read_by = $3' : ''} WHERE id = $1`,
+        k.upto === 'staff_read_upto' ? [c.id, ins.rows[0].id, nama] : [c.id, ins.rows[0].id]);
+    }
     res.json({ id: ins.rows[0].id });
   } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
 });
@@ -3615,6 +3754,7 @@ app.post('/api/chat/percakapan/:id/baca', authenticate, async (req, res) => {
   try {
     const c = await chatKonv(req, res); if (!c) return;
     const maks = (await pool.query('SELECT COALESCE(MAX(id),0)::int AS m FROM chat_messages WHERE conversation_id = $1', [c.id])).rows[0].m;
+    if (c.is_public) { await chatBacaPublik(req.user.id, maks); return res.json({ ok: true }); }
     const k = chatKolomBaca(req.user.role);
     if (req.user.role === 'user') {
       await pool.query(`UPDATE chat_conversations SET ${k.upto} = GREATEST(${k.upto}, $2), ${k.at} = NOW() WHERE id = $1`, [c.id, maks]);
@@ -3622,6 +3762,35 @@ app.post('/api/chat/percakapan/:id/baca', authenticate, async (req, res) => {
       await pool.query(`UPDATE chat_conversations SET ${k.upto} = GREATEST(${k.upto}, $2), ${k.at} = NOW(), staff_read_by = $3 WHERE id = $1`, [c.id, maks, await chatNamaPengirim(req)]);
     }
     res.json({ ok: true });
+  } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
+});
+
+// Reaksi emoji (gaya Discord) — tekan lagi emoji yang sama untuk membatalkan. Tersedia untuk
+// User & staf di percakapan apa pun; di forum Pengumuman inilah satu-satunya cara User merespons.
+app.post('/api/chat/pesan/:id/reaksi', authenticate, async (req, res) => {
+  try {
+    const role = req.user.role;
+    if (role !== 'user' && !CHAT_STAFF.includes(role)) return res.status(403).json({ error: 'Forbidden' });
+    const emoji = String(req.body.emoji || '');
+    if (!CHAT_REAKSI_IZIN.includes(emoji)) return res.status(400).json({ error: 'Emoji tidak didukung' });
+    const msgId = parseInt(req.params.id, 10) || 0;
+    const m = await pool.query(
+      `SELECT m.id, m.conversation_id, c.is_public, c.user_id AS konv_user FROM chat_messages m
+       JOIN chat_conversations c ON c.id = m.conversation_id WHERE m.id = $1 AND m.deleted_at IS NULL`, [msgId]);
+    if (!m.rows[0]) return res.status(404).json({ error: 'Pesan tidak ditemukan' });
+    const konv = m.rows[0];
+    // Di luar forum publik, hanya pihak yang memang bagian dari percakapan itu yang boleh bereaksi.
+    if (!konv.is_public && role === 'user' && konv.konv_user !== req.user.id) return res.status(403).json({ error: 'Forbidden' });
+    const existing = await pool.query('SELECT id FROM chat_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3', [msgId, req.user.id, emoji]);
+    if (existing.rows.length) {
+      await pool.query('DELETE FROM chat_reactions WHERE id = $1', [existing.rows[0].id]);
+    } else {
+      await pool.query('INSERT INTO chat_reactions (message_id, user_id, emoji) VALUES ($1,$2,$3)', [msgId, req.user.id, emoji]);
+    }
+    const agg = await pool.query(
+      `SELECT emoji, COUNT(*)::int AS n, COALESCE(bool_or(user_id = $2), false) AS saya
+       FROM chat_reactions WHERE message_id = $1 GROUP BY emoji`, [msgId, req.user.id]);
+    res.json({ reaksi: agg.rows });
   } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
 });
 
@@ -3657,6 +3826,7 @@ app.delete('/api/chat/pesan/:id', authenticate, async (req, res) => {
     const m = await chatPesanMilik(req, res, true); if (!m) return;
     await pool.query('UPDATE chat_messages SET isi = \'\', file_name = NULL, file_mime = NULL, file_size = NULL, deleted_at = NOW() WHERE id = $1', [m.id]);
     await pool.query('DELETE FROM chat_files WHERE message_id = $1', [m.id]);
+    await pool.query('DELETE FROM chat_reactions WHERE message_id = $1', [m.id]);
     res.json({ ok: true });
   } catch (err) { console.error('[ROUTE ERROR]', req.method, req.path, err.message); res.status(500).json({ error: 'Internal Server Error' }); }
 });
@@ -3666,11 +3836,11 @@ app.get('/api/chat/berkas/:id', authenticate, async (req, res) => {
     const role = req.user.role;
     if (role !== 'user' && !CHAT_STAFF.includes(role)) return res.status(403).json({ error: 'Forbidden' });
     const r = await pool.query(
-      `SELECT c.user_id, m.file_name, m.file_mime, f.data FROM chat_messages m
+      `SELECT c.user_id, c.is_public, m.file_name, m.file_mime, f.data FROM chat_messages m
        JOIN chat_files f ON f.message_id = m.id JOIN chat_conversations c ON c.id = m.conversation_id
        WHERE m.id = $1 AND m.deleted_at IS NULL`, [parseInt(req.params.id, 10) || 0]);
     const x = r.rows[0];
-    if (!x || (role === 'user' && x.user_id !== req.user.id)) return res.status(404).json({ error: 'Berkas tidak ditemukan' });
+    if (!x || (role === 'user' && !x.is_public && x.user_id !== req.user.id)) return res.status(404).json({ error: 'Berkas tidak ditemukan' });
     const gambar = x.file_mime.startsWith('image/') || x.file_mime === 'application/pdf';
     res.setHeader('Content-Type', x.file_mime);
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -3957,12 +4127,12 @@ const kirimLampiran = (res, nama, ext, mime, buf) => {
 // fitur "Bagikan" bisa memakainya langsung — tanpa memanggil HTTP ke diri
 // sendiri yang akan ikut terkena pembatasan peran rute unduh.
 async function renderSpPdf(spData) {
-  let browser, semaphoreAcquired = false;
+  let browser, profileDir, semaphoreAcquired = false;
   try {
     const html = spDocument.buildDocumentHtml(spData);
     await _pdfSemaphore.acquire();
     semaphoreAcquired = true;
-    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    ({ browser, profileDir } = await launchPdfBrowser());
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
     await page.emulateMediaType('print');
@@ -3976,7 +4146,7 @@ async function renderSpPdf(spData) {
     });
     return Buffer.from(pdf);
   } finally {
-    if (browser) { try { await browser.close(); } catch (e) {} }
+    await closePdfBrowser(browser, profileDir);
     if (semaphoreAcquired) _pdfSemaphore.release();
   }
 }
@@ -4258,7 +4428,7 @@ app.get('/api/sop/models/:id/pdf-status', authenticate, async (req, res) => {
 app.get('/api/sop/models/:id/pdf', authenticate, pdfLimiter, async (req, res) => {
   const { id } = req.params;
   const token = (req.headers.authorization || '').split(' ')[1];
-  let browser;
+  let browser, profileDir;
   let semaphoreAcquired = false;
   try {
     const chk = await pool.query('SELECT process_title FROM sop_models WHERE id = $1', [id]);
@@ -4282,7 +4452,7 @@ app.get('/api/sop/models/:id/pdf', authenticate, pdfLimiter, async (req, res) =>
 
     await _pdfSemaphore.acquire();
     semaphoreAcquired = true;
-    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    ({ browser, profileDir } = await launchPdfBrowser());
     const page = await browser.newPage();
     // Sisipkan token sebelum skrip app jalan agar halaman studio bisa memuat data (baca localStorage).
     await page.evaluateOnNewDocument((t) => { try { localStorage.setItem('token', t); } catch (e) {} }, token);
@@ -4439,7 +4609,7 @@ app.get('/api/sop/models/:id/pdf', authenticate, pdfLimiter, async (req, res) =>
     console.error('PDF gen error:', err);
     if (!res.headersSent) res.status(500).json({ error: 'Gagal membuat PDF: ' + err.message });
   } finally {
-    if (browser) { try { await browser.close(); } catch (e) {} }
+    await closePdfBrowser(browser, profileDir);
     if (semaphoreAcquired) _pdfSemaphore.release();
   }
 });

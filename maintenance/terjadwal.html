@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>e-Simpel sedang istirahat sebentar</title>
+<style>
+  :root {
+    --bg1: #eef4ff; --bg2: #f8fbff;
+    --card: #ffffff; --ink: #15233b; --muted: #5b6b85;
+    --brand: #2563eb; --brand-ink: #ffffff; --accent: #f59e0b;
+    --line: #e1e8f5; --shadow: 0 20px 50px rgba(37, 99, 235, .12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg1: #0c1424; --bg2: #101a2f;
+      --card: #16223a; --ink: #eaf0fb; --muted: #9fb0cc;
+      --brand: #5b8def; --brand-ink: #0b1220; --accent: #fbbf24;
+      --line: #25345a; --shadow: 0 20px 50px rgba(0, 0, 0, .35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--ink);
+    background: radial-gradient(1200px 600px at 20% -10%, var(--bg1), transparent 60%), var(--bg2);
+    display: grid; place-items: center;
+    padding: 24px 16px;
+  }
+  .card {
+    width: 100%; max-width: 520px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 36px 28px 28px;
+    text-align: center;
+  }
+  .art { width: 260px; max-width: 80%; height: auto; margin: 0 auto 8px; display: block; overflow: visible; }
+  .breathe { transform-origin: 120px 160px; animation: breathe 3.4s ease-in-out infinite; }
+  .tailz { transform-origin: 182px 142px; animation: twitch 5s ease-in-out infinite; }
+  .zz { opacity: 0; animation: zz 3.6s ease-in-out infinite; }
+  .zz.z2 { animation-delay: 1.2s; }
+  .zz.z3 { animation-delay: 2.4s; }
+  .star { transform-box: fill-box; transform-origin: center; animation: twinkle 2.8s ease-in-out infinite; }
+  .star.s2 { animation-delay: 1s; }
+  .star.s3 { animation-delay: 1.9s; }
+  @keyframes breathe { 0%,100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 1.07); } }
+  @keyframes twitch { 0%,80%,100% { transform: rotate(0); } 86% { transform: rotate(-9deg); } 92% { transform: rotate(5deg); } }
+  @keyframes zz { 0% { opacity: 0; transform: translate(0,8px) scale(.8); } 35% { opacity: .95; } 100% { opacity: 0; transform: translate(10px,-16px) scale(1.15); } }
+  @keyframes twinkle { 0%,100% { opacity: .25; transform: scale(.7); } 50% { opacity: 1; transform: scale(1); } }  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; letter-spacing: .02em;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    padding: 6px 12px; border-radius: 999px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  h1 { font-size: clamp(22px, 5.5vw, 28px); line-height: 1.25; margin: 16px 0 10px; }
+  p { margin: 0 0 10px; color: var(--muted); line-height: 1.6; font-size: 16px; }
+  p.strong { color: var(--ink); font-weight: 600; }
+  .actions { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+  button {
+    appearance: none; border: 0; cursor: pointer;
+    background: var(--brand); color: var(--brand-ink);
+    font: inherit; font-weight: 600;
+    padding: 12px 22px; border-radius: 12px; min-width: 180px;
+    transition: transform .15s ease, opacity .15s ease;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:disabled { opacity: .6; cursor: default; transform: none; }
+  button:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 40%, transparent); outline-offset: 2px; }
+  .hint { font-size: 13px; color: var(--muted); min-height: 1.4em; }
+  .foot { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<main class="card" role="main">
+  <svg class="art" viewBox="0 0 240 180" role="img" aria-label="Kucing sedang tidur nyenyak di atas bantal">
+    <ellipse cx="120" cy="170" rx="104" ry="6" fill="currentColor" opacity=".08"/>
+
+    <!-- bulan dan bintang -->
+    <path d="M196 22a16 16 0 1 0 14 24 13 13 0 0 1-14-24z" fill="#fbbf24"/>
+    <path class="star" d="M40 30l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="#2563eb"/>
+    <path class="star s2" d="M150 16l1.6 4 4 1.6-4 1.6-1.6 4-1.6-4-4-1.6 4-1.6z" fill="#2563eb"/>
+    <path class="star s3" d="M22 78l1.4 3.4 3.4 1.4-3.4 1.4L22 88l-1.4-3.4-3.4-1.4 3.4-1.4z" fill="#f59e0b"/>
+
+    <!-- bantal -->
+    <rect x="28" y="140" width="184" height="26" rx="13" fill="#93c5fd"/>
+    <rect x="28" y="140" width="184" height="9" rx="4.5" fill="#bfdbfe"/>
+    <circle cx="44" cy="153" r="2" fill="#60a5fa"/><circle cx="92" cy="156" r="2" fill="#60a5fa"/><circle cx="150" cy="156" r="2" fill="#60a5fa"/><circle cx="196" cy="153" r="2" fill="#60a5fa"/>
+
+    <!-- ekor -->
+    <path class="tailz" d="M182 142 q 24 2 24 -14 q 0 -10 -10 -10" fill="none" stroke="#f59e0b" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- badan (bernapas) -->
+    <g class="breathe">
+      <ellipse cx="120" cy="128" rx="66" ry="32" fill="#f59e0b"/>
+      <path d="M104 99 q4 10 -1 18 M122 97 q5 11 0 21 M140 99 q4 10 -1 18 M158 105 q3 8 -1 15" stroke="#d97706" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+      <ellipse cx="148" cy="148" rx="22" ry="9" fill="#fde7bd"/>
+    </g>
+
+    <!-- kepala -->
+    <path d="M44 114 L40 90 L62 104 Z" fill="#f59e0b"/>
+    <path d="M96 114 L100 90 L78 104 Z" fill="#f59e0b"/>
+    <path d="M47 108 L45 97 L56 104 Z" fill="#f9a8a8"/>
+    <path d="M93 108 L95 97 L84 104 Z" fill="#f9a8a8"/>
+    <ellipse cx="70" cy="128" rx="32" ry="26" fill="#f59e0b"/>
+    <path d="M62 105 q-1 6 2 9 M70 103 v10 M78 105 q1 6 -2 9" stroke="#d97706" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M52 126 q6 6 12 0 M76 126 q6 6 12 0" fill="none" stroke="#15233b" stroke-width="2.4" stroke-linecap="round"/>
+    <ellipse cx="48" cy="136" rx="5" ry="3" fill="#f9a8a8" opacity=".7"/>
+    <ellipse cx="92" cy="136" rx="5" ry="3" fill="#f9a8a8" opacity=".7"/>
+    <path d="M67 133 h6 l-3 4 z" fill="#ec6b8a"/>
+    <path d="M70 137 q-3 3 -6 1 M70 137 q3 3 6 1" stroke="#15233b" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M44 134 l-12 -2 M44 139 l-12 3 M96 134 l12 -2 M96 139 l12 3" stroke="#15233b" stroke-width="1.2" stroke-linecap="round" opacity=".45"/>
+
+    <!-- kaki depan -->
+    <ellipse cx="90" cy="148" rx="14" ry="7" fill="#fde7bd"/>
+
+    <!-- zzz -->
+    <text class="zz" x="92" y="94" font-size="16" font-weight="700" fill="#2563eb">Z</text>
+    <text class="zz z2" x="104" y="80" font-size="12" font-weight="700" fill="#2563eb">z</text>
+    <text class="zz z3" x="114" y="68" font-size="9" font-weight="700" fill="#2563eb">z</text>
+  </svg>
+
+  <span class="pill"><span class="dot"></span>Pemeliharaan terjadwal</span>
+  <h1>Psst, e-Simpel sedang istirahat sebentar</h1>
+  <p>Kami sedang melakukan pemeliharaan terjadwal supaya e-Simpel makin lancar dan aman. Maaf kalau waktunya kurang pas ya.</p>
+  <p class="strong">Sabar ya, sebentar lagi bangun kok.</p>
+  <p>Silakan kembali beberapa saat lagi.</p>
+
+  <div class="actions">
+    <button id="retry" type="button">Coba lagi</button>
+    <div class="hint" id="hint" aria-live="polite"></div>
+  </div>
+
+  <div class="foot">Halaman ini akan terbuka sendiri begitu e-Simpel kembali normal.</div>
+</main>
+
+<script>
+(function () {
+  var INTERVAL = 30;
+  var left = INTERVAL, busy = false;
+  var btn = document.getElementById('retry');
+  var hint = document.getElementById('hint');
+
+  function render() {
+    hint.textContent = busy ? 'Memeriksa…' : 'Memeriksa ulang otomatis dalam ' + left + ' detik';
+  }
+
+  function check() {
+    if (busy) return;
+    busy = true; btn.disabled = true; render();
+    fetch(location.pathname + '?cek=' + Date.now(), {
+      cache: 'no-store',
+      headers: { 'Accept': 'text/html' }
+    }).then(function (res) {
+      // Halaman ini dikirim dengan status 503. Selain itu berarti web sudah pulih.
+      if (res.ok) { location.reload(); return; }
+      done('Belum bisa dibuka. Kami coba lagi nanti.');
+    }).catch(function () {
+      done('Belum bisa dibuka. Kami coba lagi nanti.');
+    });
+  }
+
+  function done(msg) {
+    busy = false; btn.disabled = false; left = INTERVAL;
+    hint.textContent = msg;
+    setTimeout(render, 2500);
+  }
+
+  btn.addEventListener('click', check);
+  setInterval(function () {
+    if (busy) return;
+    left -= 1;
+    if (left <= 0) { check(); } else { render(); }
+  }, 1000);
+  render();
+})();
+</script>
+</body>
+</html>

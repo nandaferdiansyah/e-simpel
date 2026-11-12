@@ -1,0 +1,18 @@
+[
+  "Pernahkah Anda kesulitan mencari SOP versi terbaru? Di video ini, kita berkenalan dengan E-Simpel.",
+  "Apa itu E-Simpel? Singkatan dari Sistem Informasi Manajemen Prosedur dan Pelayanan. Aplikasi milik Kementerian ATR/BPN yang dikelola Biro Ortala MR.",
+  "Di sini, seluruh unit kerja menyusun, mengajukan, mereview, hingga menetapkan dokumen ketatalaksanaan, yaitu proses bisnis, SOP, dan standar pelayanan, dalam satu alur dan satu tempat penyimpanan.",
+  "Kelebihan pertama: hanya ada satu versi dokumen. Tidak ada lagi pertanyaan, berkas mana yang paling baru. Setiap perubahan status terekam di riwayat, dan setiap perpindahan tahap memicu notifikasi.",
+  "Kedua, dokumen dibuat langsung di dalam aplikasi. Ada studio BPMN untuk proses bisnis, Studio SOP dengan bagan alur, dan Studio Standar Pelayanan. Punya berkas lama? Tinggal impor dari PDF, Word, atau Visual Paradigm.",
+  "Ketiga, proses review jadi mudah. Catatan perbaikan ditulis langsung pada dokumennya, bukan lagi lewat surel berantai.",
+  "Keempat, dashboard memantau capaian tiap unit kerja secara berjenjang, dan dokumen yang terbit bisa dibagikan lewat satu tautan. Hasilnya dapat diunduh sebagai PDF, Word, atau Excel. Dan semuanya tanpa biaya langganan.",
+  "Sekarang, kita lihat cara memakainya. Pertama, buka E-Simpel, lalu masuk dengan nama pengguna dan kata sandi Anda.",
+  "Setelah masuk, Anda tiba di Dashboard. Di sini terlihat rekap dokumen per unit kerja. Klik nama unit untuk melihat rincian sub-unitnya.",
+  "Untuk membuat SOP, pilih menu Buat SOP di sidebar, lalu klik Buat SOP Baru.",
+  "Isi judul, jenis, klasifikasi, dan sub-unit, lalu buka studio.",
+  "Di Studio SOP, susun bagan alur. Tambahkan kegiatan, pilih pelaksananya, lalu atur waktu dan keluarannya. Perubahan tersimpan otomatis.",
+  "Sudah selesai? Klik Kirim ke Biro Ortala MR. Status dokumen berubah dari Draft menjadi Pending.",
+  "Reviewer memberi catatan langsung di dokumen. Bila perlu revisi, Anda perbaiki sesuai catatan, lalu kirim ulang. Jika sudah sesuai, status menjadi Approved.",
+  "Terakhir, setelah ditetapkan, SOP terbit. Unduh sebagai PDF, atau bagikan lewat satu tautan yang bisa dibuka siapa saja tanpa perlu login.",
+  "Itulah E-Simpel: satu ruang kerja, satu versi dokumen, dari penyusunan sampai penetapan. Butuh bantuan? Buka menu Panduan Penggunaan, atau hubungi HelpDesk. Selamat mencoba!"
+]

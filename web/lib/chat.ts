@@ -7,6 +7,12 @@ import { useCallback, useEffect, useState } from 'react';
 export const API_CHAT = '/e-sop-atrbpn/api/chat';
 export const EVENT_CHAT = 'simpel-chat-berubah';
 
+// Emoji untuk menyisipkan ke teks pesan (gaya Discord) — bukan daftar lengkap, cuma yang sering dipakai.
+export const EMOTICON_SISIP = ['😀', '😂', '😍', '😉', '😊', '🙏', '👍', '👏', '🎉', '🔥', '😢', '😮', '🤔', '😅', '❤️', '👀', '🚀', '✅'];
+// Set emoji reaksi tetap — harus sama dengan CHAT_REAKSI_IZIN di server.js.
+export const EMOTICON_REAKSI = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', '👏'];
+
+export interface ReaksiRingkas { emoji: string; n: number; saya: boolean }
 export interface PesanChat {
   id: number;
   dariUser: boolean;
@@ -19,15 +25,16 @@ export interface PesanChat {
   isi: string;
   berkas: { nama: string; mime: string; ukuran: number } | null;
   balas: { id: number; pengirim: string | null; dihapus: boolean; isi: string; berkas: string | null } | null;
+  reaksi: ReaksiRingkas[];
 }
 export interface RiwayatChat {
-  lawan: { id: number; nama: string; unit: string; judul: string };
+  lawan: { id: number; nama: string; unit: string; judul: string; publik: boolean };
   baca: { staffSampai: number; staffOleh: string | null; userSampai: number };
   pesan: PesanChat[];
 }
 export interface BarisDaftar {
   id: number; judul: string; nama: string; unit: string; pesanTerakhir: string; dariUser: boolean; pengirim: string | null;
-  waktu: string; menungguBalasan: boolean; belumDibaca: number;
+  waktu: string; menungguBalasan: boolean; belumDibaca: number; publik: boolean;
 }
 
 export async function apiChat<T = unknown>(path: string, opt: { method?: string; body?: unknown } = {}): Promise<T> {

@@ -5,10 +5,10 @@
 // diambil alih admin lain. Gaya mengikuti WhatsApp: gelembung, centang terkirim/dibaca,
 // balas-kutip, edit (30 menit), hapus, lampiran.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, CheckCheck, ChevronDown, Copy, Download, FileText, MessageCircle, MessageSquarePlus, Paperclip, Pencil, Reply, Search, Send, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, CheckCheck, ChevronDown, Copy, Download, FileText, Megaphone, MessageCircle, MessageSquarePlus, Paperclip, Pencil, Reply, Search, Send, Smile, Trash2, X } from 'lucide-react';
 import { useAppContext } from '@/lib/app-context';
 import { useConfirm } from '@/components/ConfirmDialog';
-import { API_CHAT, BarisDaftar, PesanChat, RiwayatChat, apiChat, bacaBase64, segarkanLencanaChat } from '@/lib/chat';
+import { API_CHAT, BarisDaftar, EMOTICON_REAKSI, EMOTICON_SISIP, PesanChat, RiwayatChat, apiChat, bacaBase64, segarkanLencanaChat } from '@/lib/chat';
 
 const MAKS_BERKAS = 3 * 1024 * 1024;
 const TERIMA = '.png,.jpg,.jpeg,.pdf,.docx,.xlsx';
@@ -95,6 +95,8 @@ export default function ChatPage() {
   const [edit, setEdit] = useState<PesanChat | null>(null);
   const [menuId, setMenuId] = useState<number | null>(null);
   const [kirim, setKirim] = useState(false);
+  const [emojiPesanId, setEmojiPesanId] = useState<number | null>(null); // popover reaksi pada pesan mana
+  const [emojiComposer, setEmojiComposer] = useState(false); // popover sisip emoji di kotak ketik
   const bawah = useRef<HTMLDivElement>(null);
   const gulir = useRef<HTMLDivElement>(null);
   const dekatBawah = useRef(true);
@@ -195,6 +197,14 @@ export default function ChatPage() {
     try { await apiChat(`/pesan/${p.id}`, { method: 'DELETE' }); await muatRiwayat(); muatDaftar(); } catch (e) { setGalat((e as Error).message); }
   };
 
+  // Tekan lagi emoji yang sama = batal. Reaksi tersedia di semua pesan; di forum Pengumuman
+  // inilah satu-satunya cara User (Terbatas) merespons karena tidak boleh mengirim pesan teks.
+  const reaksi = async (pesanId: number, emoji: string) => {
+    setEmojiPesanId(null);
+    try { await apiChat(`/pesan/${pesanId}/reaksi`, { method: 'POST', body: { emoji } }); await muatRiwayat(); } catch (e) { setGalat((e as Error).message); }
+  };
+  const sisipEmoji = (e: string) => { setIsi(v => v + e); setEmojiComposer(false); inputRef.current?.focus(); };
+
   const pilihBerkas = (f?: File) => {
     if (!f) return;
     const ext = f.name.split('.').pop()?.toLowerCase() || '';
@@ -214,6 +224,7 @@ export default function ChatPage() {
     const out: ({ tipe: 'hari'; label: string } | { tipe: 'pesan'; p: PesanChat; ekor: boolean })[] = [];
     let hari = ''; let prev: PesanChat | null = null;
     (riwayat?.pesan || []).forEach(p => {
+      if (p.dihapus) return; // pesan terhapus disembunyikan total, bukan sekadar ditandai
       const h = new Date(p.waktu).toDateString();
       if (h !== hari) { out.push({ tipe: 'hari', label: hariLabel(p.waktu) }); hari = h; prev = null; }
       out.push({ tipe: 'pesan', p, ekor: !prev || prev.dariUser !== p.dariUser || prev.pengirim !== p.pengirim });
@@ -234,20 +245,24 @@ export default function ChatPage() {
   const gelKeluar = g ? 'bg-[#005c4b] text-slate-100' : 'bg-[#d9fdd3] text-slate-800';
 
   const dataDaftar = daftar.find(d => d.id === terpilih);
+  const publik = riwayat?.lawan.publik ?? dataDaftar?.publik ?? false;
   const judulKonv = riwayat?.lawan.judul ?? dataDaftar?.judul ?? '';
-  const namaLawan = staf ? (riwayat?.lawan.nama || dataDaftar?.nama || '') : (judulKonv || 'Tim Admin SIMPEL');
-  const subLawan = staf ? [riwayat?.lawan.unit, judulKonv].filter(Boolean).join(' · ') : 'HelpDesk · dibalas oleh admin yang bertugas';
+  const namaLawan = publik ? 'Pengumuman' : staf ? (riwayat?.lawan.nama || dataDaftar?.nama || '') : (judulKonv || 'Tim Admin SIMPEL');
+  const subLawan = publik ? 'Untuk seluruh unit kerja · hanya admin yang dapat mengirim' : staf ? [riwayat?.lawan.unit, judulKonv].filter(Boolean).join(' · ') : 'HelpDesk · dibalas oleh admin yang bertugas';
   const tampilPanelKiri = true;
   const bukaPercakapan = thread !== null;
 
   const gelembung = (p: PesanChat, ekor: boolean) => {
-    // Sisi kanan: pesan dari sisi saya (staf: semua staf; User: akun User).
-    const kanan = staf ? !p.dariUser : p.dariUser;
-    const dibaca = p.dariUser ? p.id <= (riwayat?.baca.staffSampai || 0) : p.id <= (riwayat?.baca.userSampai || 0);
+    // Sisi kanan: pesan dari sisi saya. Forum Pengumuman punya banyak pengirim admin, jadi
+    // dipakai p.saya langsung (bukan asumsi 2-pihak dariUser/staf pada kotak masuk biasa).
+    const kanan = publik ? p.saya : (staf ? !p.dariUser : p.dariUser);
+    // Centang-biru "dibaca" tak bermakna di forum publik (banyak pembaca) — tampilkan terkirim saja.
+    const dibaca = publik ? false : (p.dariUser ? p.id <= (riwayat?.baca.staffSampai || 0) : p.id <= (riwayat?.baca.userSampai || 0));
     const bolehEdit = p.saya && !p.dihapus && !p.berkas && Date.now() - new Date(p.waktu).getTime() < BATAS_EDIT_MS;
     const bolehHapus = !p.dihapus && (p.saya || role === 'superadmin');
     // Label pengirim: tampil pada pesan pertama dari satu pengirim — kecuali pesan saya sendiri (staf) agar tidak ramai.
-    const tampilNama = ekor && (staf ? (p.dariUser || !p.saya) : !p.dariUser);
+    // Forum Pengumuman: selalu tampil saat pengirim berganti (banyak admin berbeda bisa mengirim).
+    const tampilNama = publik ? ekor : (ekor && (staf ? (p.dariUser || !p.saya) : !p.dariUser));
     const nama = p.dariUser ? (staf ? p.pengirim : 'Anda') : `${p.pengirim || 'Admin'}${labelPeran(p.peran) ? ` · ${labelPeran(p.peran)}` : ''}`;
     return (
       <div key={p.id} id={`pesan-${p.id}`} className={`group flex ${kanan ? 'justify-end' : 'justify-start'} ${ekor ? 'mt-2' : 'mt-0.5'}`}>
@@ -276,6 +291,30 @@ export default function ChatPage() {
               : <span title="Terkirim"><Check className="w-4 h-4" /></span>)}
           </div>
           <div className="clear-both" />
+          {!p.dihapus && (
+            <div className={`flex flex-wrap items-center gap-1 mt-1 ${kanan ? 'justify-end' : 'justify-start'}`}>
+              {p.reaksi.map(rk => (
+                <button key={rk.emoji} onClick={() => reaksi(p.id, rk.emoji)} title={rk.saya ? 'Batalkan reaksi' : 'Ikut bereaksi'}
+                  className={`text-xs px-1.5 py-0.5 rounded-full border flex items-center gap-1 leading-none ${rk.saya ? 'border-teal-500 bg-teal-500/15' : (g ? 'border-slate-600 bg-slate-700/50' : 'border-slate-200 bg-white')}`}>
+                  <span>{rk.emoji}</span><span className="font-semibold">{rk.n}</span>
+                </button>
+              ))}
+              <button onClick={() => setEmojiPesanId(emojiPesanId === p.id ? null : p.id)} aria-label="Tambah reaksi"
+                className={`w-5.5 h-5.5 rounded-full border flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-60 ${g ? 'border-slate-600 text-slate-300' : 'border-slate-200 text-slate-500'}`}>
+                <Smile className="w-3.5 h-3.5" />
+              </button>
+              {emojiPesanId === p.id && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setEmojiPesanId(null)} />
+                  <div className={`absolute z-40 bottom-full mb-1 ${kanan ? 'right-0' : 'left-0'} flex flex-nowrap gap-0.5 p-1.5 rounded-xl border shadow-xl w-max ${g ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-200'}`}>
+                    {EMOTICON_REAKSI.map(e => (
+                      <button key={e} onClick={() => reaksi(p.id, e)} className="w-7 h-7 shrink-0 flex items-center justify-center text-lg leading-none rounded hover:bg-black/10 hover:scale-125 transition-transform">{e}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {!p.dihapus && (
             <button onClick={() => setMenuId(menuId === p.id ? null : p.id)} aria-label="Menu pesan"
               className={`absolute top-0.5 right-0.5 p-0.5 rounded-full opacity-0 group-hover:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-60 ${g ? 'bg-slate-700/80' : 'bg-white/80'}`}>
@@ -368,13 +407,16 @@ export default function ChatPage() {
               {tampil.map(d => (
                 <button key={d.id} onClick={() => setTerpilih(d.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-left border-b ${g ? 'border-slate-800' : 'border-slate-100'} ${terpilih === d.id ? (g ? 'bg-slate-800' : 'bg-teal-50') : (g ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50')}`}>
-                  <span className="w-11 h-11 rounded-full bg-teal-600 text-white flex items-center justify-center font-bold shrink-0">{inisial(staf ? d.nama : (d.judul || 'P'))}</span>
+                  <span className={`w-11 h-11 rounded-full text-white flex items-center justify-center font-bold shrink-0 ${d.publik ? 'bg-amber-500' : 'bg-teal-600'}`}>
+                    {d.publik ? <Megaphone className="w-5 h-5" /> : inisial(staf ? d.nama : (d.judul || 'P'))}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="font-semibold truncate">{staf ? d.nama : (d.judul || 'Percakapan tanpa judul')}</span>
+                      <span className="font-semibold truncate">{d.publik ? 'Pengumuman' : staf ? d.nama : (d.judul || 'Percakapan tanpa judul')}</span>
                       <span className={`text-[11px] shrink-0 ${d.belumDibaca ? 'text-teal-500 font-bold' : teksSamar}`}>{waktuDaftar(d.waktu)}</span>
                     </span>
-                    {staf && (d.unit || d.judul) && <span className={`block text-[11px] truncate ${teksSamar}`}>{[d.unit, d.judul].filter(Boolean).join(' · ')}</span>}
+                    {d.publik && <span className={`block text-[11px] truncate ${teksSamar}`}>Untuk seluruh unit kerja</span>}
+                    {!d.publik && staf && (d.unit || d.judul) && <span className={`block text-[11px] truncate ${teksSamar}`}>{[d.unit, d.judul].filter(Boolean).join(' · ')}</span>}
                     <span className="flex items-center justify-between gap-2 mt-0.5">
                       <span className={`text-sm truncate ${teksSamar}`}>{!d.dariUser && <span className="opacity-80">{d.pengirim?.split(' ')[0]}: </span>}{d.pesanTerakhir}</span>
                       {d.belumDibaca > 0 && <span className="shrink-0 min-w-5 h-5 px-1.5 rounded-full bg-teal-500 text-white text-[11px] font-bold flex items-center justify-center">{d.belumDibaca}</span>}
@@ -412,12 +454,17 @@ export default function ChatPage() {
 
               <div ref={gulir} onScroll={e => { const el = e.currentTarget; dekatBawah.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120; }}
                 className={`flex-1 min-h-0 overflow-y-auto px-3 sm:px-6 py-3 ${latar}`}>
-                {!staf && (
+                {publik && (
+                  <div className={`mx-auto max-w-md text-center text-xs rounded-lg px-3 py-2 mb-3 ${g ? 'bg-amber-900/30 text-amber-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
+                    <Megaphone className="w-4 h-4 inline-block mr-1 -mt-0.5" />Forum Pengumuman — dapat dilihat seluruh unit kerja. Hanya admin & superadmin yang dapat mengirim pesan di sini.{!staf && ' Anda dapat merespons lewat reaksi emoji 😊 pada tiap pesan.'}
+                  </div>
+                )}
+                {!publik && !staf && (
                   <div className={`mx-auto max-w-md text-center text-xs rounded-lg px-3 py-2 mb-3 ${g ? 'bg-amber-900/30 text-amber-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
                     Tulis pertanyaan atau kendala Anda. Akun ini dipakai bersama, jadi sebutkan nama dan bagian Anda di pesan. Admin mana pun dapat membalas. Untuk topik atau bagian lain, mulai chat baru lewat ikon di daftar.
                   </div>
                 )}
-                {staf && riwayat && riwayat.pesan.length === 0 && (
+                {staf && !publik && riwayat && riwayat.pesan.length === 0 && (
                   <div className={`mx-auto max-w-md text-center text-xs rounded-lg px-3 py-2 mb-3 ${g ? 'bg-slate-800 text-slate-300' : 'bg-white text-slate-600'}`}>Belum ada pesan. Kirim pesan pertama untuk memulai percakapan.</div>
                 )}
                 {!riwayat && !galat && <p className={`text-center text-sm py-6 ${teksSamar}`}>Memuat…</p>}
@@ -430,6 +477,12 @@ export default function ChatPage() {
               {galat && <div className="px-4 py-2 text-sm bg-red-50 text-red-600 border-t border-red-200 flex items-center justify-between gap-2"><span>{galat}</span><button onClick={() => setGalat('')} aria-label="Tutup"><X className="w-4 h-4" /></button></div>}
 
               <footer className={`border-t ${g ? 'border-slate-700 bg-[#1f2c34]' : 'border-slate-200 bg-slate-50'}`}>
+                {publik && !staf ? (
+                  <p className={`px-4 py-4 text-center text-sm ${teksSamar}`}>
+                    <Megaphone className="w-4 h-4 inline-block mr-1.5 -mt-0.5 opacity-70" />Hanya admin yang dapat mengirim pesan di forum Pengumuman — arahkan kursor/tekan lama pesan di atas untuk merespons dengan emoji.
+                  </p>
+                ) : (
+                <>
                 {(balasKe || edit || berkas) && (
                   <div className="px-3 pt-2 flex items-center gap-2">
                     <div className={`flex-1 min-w-0 rounded-lg border-l-4 border-teal-500 px-3 py-1.5 text-xs ${g ? 'bg-slate-800' : 'bg-white'}`}>
@@ -444,6 +497,19 @@ export default function ChatPage() {
                 <div className="flex items-end gap-2 p-3">
                   <input ref={berkasRef} type="file" accept={TERIMA} className="hidden" onChange={e => { pilihBerkas(e.target.files?.[0]); e.target.value = ''; }} />
                   {!edit && <button onClick={() => berkasRef.current?.click()} title="Lampirkan berkas (maks 3 MB)" aria-label="Lampirkan berkas" className={`p-2.5 rounded-full shrink-0 ${g ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200'}`}><Paperclip className="w-5 h-5" /></button>}
+                  <div className="relative shrink-0">
+                    <button onClick={() => setEmojiComposer(v => !v)} title="Sisipkan emoji" aria-label="Sisipkan emoji" className={`p-2.5 rounded-full ${g ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200'}`}><Smile className="w-5 h-5" /></button>
+                    {emojiComposer && (
+                      <>
+                        <div className="fixed inset-0 z-30" onClick={() => setEmojiComposer(false)} />
+                        <div className={`absolute z-40 bottom-full mb-1 left-0 grid grid-cols-6 gap-0.5 p-2 rounded-xl border shadow-xl w-[232px] ${g ? 'bg-slate-800 border-slate-600' : 'bg-white border-slate-200'}`}>
+                          {EMOTICON_SISIP.map(e => (
+                            <button key={e} onClick={() => sisipEmoji(e)} className="w-8 h-8 shrink-0 flex items-center justify-center text-xl leading-none rounded hover:bg-black/10 hover:scale-125 transition-transform">{e}</button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <textarea ref={inputRef} value={isi} rows={1} maxLength={2000} placeholder="Ketik pesan…"
                     onPaste={e => {
                       if (edit) return;
@@ -461,6 +527,8 @@ export default function ChatPage() {
                     {edit ? <Check className="w-5 h-5" /> : <Send className="w-5 h-5" />}
                   </button>
                 </div>
+                </>
+                )}
               </footer>
             </>
           )}

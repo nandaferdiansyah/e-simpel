@@ -1,0 +1,19 @@
+name = "esimpel-maintenance"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# Ganti dengan domain e-Simpel kamu (domain harus sudah ada di Cloudflare).
+# Contoh: pattern = "esimpel.contoh.go.id/*", zone_name = "contoh.go.id"
+routes = [
+  { pattern = "tlrb.ortalamr.id/*", zone_name = "ortalamr.id" }
+]
+
+# .html diimpor sebagai teks.
+[[rules]]
+type = "Text"
+globs = ["**/*.html"]
+fallthrough = true
+
+[vars]
+# Ubah ke "true" untuk memaksa halaman maintenance tampil (misalnya saat deploy).
+MAINTENANCE = "false"

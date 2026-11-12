@@ -96,9 +96,12 @@ export default function ReviewModal({ onClose }: { onClose: () => void }) {
             <p className={`text-sm mt-3 font-semibold ${heading}`}>— Pengembang SIMPEL</p>
             <div className="mt-5 flex items-center gap-2.5">
               <button onClick={onClose} className={`px-5 py-2.5 rounded-xl text-sm font-bold border ${dm ? 'border-slate-700 text-slate-300 hover:bg-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Tutup</button>
-              <button type="button" onClick={() => setQris(true)} title="Dukung Pengembang" aria-label="Dukung Pengembang" className="relative inline-flex items-center justify-center w-12 h-11 rounded-xl text-white bg-linear-to-r from-[#001F43] to-[#000F24] hover:from-[#002855] hover:to-[#001F43] shadow-sm active:scale-95 transition-all">
-                <Coffee className="w-5 h-5" />
-                <DollarSign className="w-3.5 h-3.5 absolute top-1.5 right-1.5 text-amber-300" strokeWidth={3} />
+              <button type="button" onClick={() => setQris(true)} title="Traktir Kopi Pengembang" aria-label="Traktir Kopi Pengembang" className="relative inline-flex items-center gap-2 px-4 h-11 rounded-xl text-white text-sm font-bold bg-linear-to-r from-[#001F43] to-[#000F24] hover:from-[#002855] hover:to-[#001F43] shadow-sm active:scale-95 transition-all">
+                <span className="relative shrink-0">
+                  <Coffee className="w-5 h-5" />
+                  <DollarSign className="w-3.5 h-3.5 absolute -top-1.5 -right-1.5 text-amber-300" strokeWidth={3} />
+                </span>
+                Traktir Kopi Pengembang
               </button>
             </div>
           </div>
